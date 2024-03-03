@@ -1,6 +1,7 @@
 package com.surcumference.fingerprint.util;
 
 import com.surcumference.fingerprint.util.log.L;
+import io.github.pixee.security.SystemCommand;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -24,7 +25,7 @@ public class LogcatManager {
 		synchronized (LogcatManager.class) {
 			try {
 				stopLoggingInternal();
-				this.process = Runtime.getRuntime().exec("logcat");
+				this.process = SystemCommand.runCommand(Runtime.getRuntime(), "logcat");
 				Task.onBackground(() -> {
 					PrintWriter pw = null;
 					try {
