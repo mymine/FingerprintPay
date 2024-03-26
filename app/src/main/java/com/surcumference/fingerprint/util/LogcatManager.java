@@ -1,6 +1,7 @@
 package com.surcumference.fingerprint.util;
 
 import com.surcumference.fingerprint.util.log.L;
+import io.github.pixee.security.BoundedLineReader;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -31,7 +32,7 @@ public class LogcatManager {
 						pw = new PrintWriter(targetFile);
 						BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
 						String line;
-						while ((line = bufferedReader.readLine()) != null) {
+						while ((line = BoundedLineReader.readLine(bufferedReader, 5_000_000)) != null) {
 							pw.println(line);
 						}
 					} catch (Exception e) {
