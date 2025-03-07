@@ -11,7 +11,7 @@
 * Android 6.0+
 * Android 5.1+(部分魅族机型)
 * Android 4.4+(部分三星机型)
-* [Magisk](https://github.com/topjohnwu/Magisk)、[Zygisk](https://github.com/topjohnwu/Magisk) 、 [Xposed](https://github.com/ElderDrivers/EdXposed) 或 [KernelSU](https://github.com/tiann/KernelSU) + [Zygisk Next](https://github.com/Dr-TSNG/ZygiskNext)
+* [Magisk](https://github.com/topjohnwu/Magisk)、[Zygisk](https://github.com/topjohnwu/Magisk) 、 [Xposed](https://github.com/ElderDrivers/EdXposed) 或 [APatch](https://github.com/bmax121/APatch) + [Zygisk Next](https://github.com/Dr-TSNG/ZygiskNext)
 
 ## 实现原理
 1. 利用 [Magisk](https://github.com/topjohnwu/Magisk) 的 [Riru](https://github.com/RikkaApps/Riru)模块 或 Zygisk 加载指纹支付模块
@@ -31,10 +31,10 @@
 4. 确认启用模块, 重启手机
 5. Enjoy
 
-## 使用步骤 KernelSU + Zygisk Next
+## 使用步骤 Apatch + Zygisk Next
 1. 下载插件: [Zygisk-Next-release.zip](https://github.com/Dr-TSNG/ZygiskNext/releases)
 2. 下载插件: [zygisk-module-xfingerprint-pay-all-release.zip](https://github.com/eritpchy/FingerprintPay/releases)
-3. 进入 KernelSU 管理器, 模块, 安装这几个模块, 没装完不要重启, 安装完毕后再重启手机
+3. 进入 Apatch 管理器, 模块, 安装这几个模块, 没装完不要重启, 安装完毕后再重启手机
 4. 开机后确认模块工作是否正常, 若不正常再次重启手机
 5. Enjoy
 
@@ -82,7 +82,7 @@
 * [Magisk](https://github.com/topjohnwu/Magisk)
 * [WechatFp](https://github.com/dss16694/WechatFp)
 * [Zygisk Next](https://github.com/Dr-TSNG/ZygiskNext)
-* [KernelSU](https://github.com/tiann/KernelSU)
+* [APatch](https://github.com/bmax121/APatch)
 * [Magisk Delta](https://huskydg.github.io/magisk-files/)
 * [LSPosed](https://github.com/LSPosed/LSPosed)
 
@@ -95,6 +95,7 @@
 6. Magisk Delta + Zygisk Next 组合 截止2023年11月8日目前这两软件尚未互相适配, 切勿尝试!
 7. Magisk 本身自带Zygisk功能, 切勿尝试 Magisk + Zygisk Next 这么无聊的组合
 8. 自5.0.0版本开始, 如果您**每次**(请注意, 是**每次**!)都识别出错第一次, 属于不正常现象, 正常现象应为首次出错一次,后续正常, 您可以删除系统指纹再重新添加并重新录入支付密码尝试
+9. 由于本人主用APatch进行开发测试, 因此优先推荐使用APatch, KSU相关问题只能延后处理, 或者看社区有没有解决方案, 理论上他们都是同一个东西
 
 <img src="./doc/qq_group.jpg" alt="QQ交流群: [665167891]" width="500">
 
