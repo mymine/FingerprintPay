@@ -188,7 +188,8 @@ public class TaobaoBasePlugin implements IAppPlugin {
             if (BuildConfig.DEBUG) {
                 L.d("activity", activity, "clz", activityClzName);
             }
-            if (activityClzName.contains(".NewTaobaoSettingActivity") // <- 这个命名真是SB, 再改版一次估计你要叫 NewNewTaobaoSettingActivity 了吧
+            if (activityClzName.contains(".NewPaySettingsActivity")
+                    || activityClzName.contains(".NewTaobaoSettingActivity") // <- 这个命名真是SB, 再改版一次估计你要叫 NewNewTaobaoSettingActivity 了吧
                     || activityClzName.contains(".TaobaoSettingActivity")) {
                 Task.onMain(250, () -> doSettingsMenuInject(activity)); // 100 -> 250, 这个改版的页面加载性能还没上一版好
                 Task.onMain(1000, () -> doSettingsMenuInject(activity)); // try again
@@ -424,7 +425,7 @@ public class TaobaoBasePlugin implements IAppPlugin {
         if (ViewUtils.findViewByText(rootView, Lang.getString(R.id.app_settings_name)) != null) {
             return;
         }
-        View itemView = ViewUtils.findViewByName(activity, activity.getPackageName(), "v_setting_page_item");
+        View itemView = ViewUtils.findViewByName(activity, activity.getPackageName(), "v_setting_page_item", "pay_setting_page_item");
         if (itemView == null) {
             itemView = findTaobaoVSettingsPageItemView(rootView);
         }
@@ -485,7 +486,7 @@ public class TaobaoBasePlugin implements IAppPlugin {
 
         //try use Taobao style
         try {
-            View generalView = ViewUtils.findViewByText(activity.getWindow().getDecorView(), "通用", "General");
+            View generalView = ViewUtils.findViewByText(activity.getWindow().getDecorView(), "通用", "General", "人脸/指纹支付");
             L.d("generalView", generalView);
             if (generalView instanceof TextView) {
                 TextView generalTextView = (TextView) generalView;
@@ -508,17 +509,17 @@ public class TaobaoBasePlugin implements IAppPlugin {
         }
         mLineBottomView.setBackgroundColor(0xFFDFDFDF);
 
-        linearLayout.addView(mLineTopCon, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        linearLayout.addView(mItemHlinearLayout, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, DpUtils.dip2px(activity, 44)));
-        LinearLayout.LayoutParams lineParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1);
-        lineParams.bottomMargin = DpUtils.dip2px(activity, 10);
-        linearLayout.addView(mLineBottomView, lineParams);
-
         for (int i = 0; i < childViewCount; i++) {
             View view = childViewList.get(i);
             ViewGroup.LayoutParams params = childViewParamsList.get(i);
             linearLayout.addView(view, params);
         }
+
+        linearLayout.addView(mLineTopCon, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        linearLayout.addView(mItemHlinearLayout, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, DpUtils.dip2px(activity, 44)));
+        LinearLayout.LayoutParams lineParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1);
+        lineParams.bottomMargin = DpUtils.dip2px(activity, 10);
+        linearLayout.addView(mLineBottomView, lineParams);
     }
 
     private void inputDigitPassword(Activity activity, String password) {
