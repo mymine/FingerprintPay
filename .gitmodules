@@ -1,6 +1,6 @@
-[submodule "3rdparty/Riru-ModuleTemplate"]
-	path = 3rdparty/Riru-ModuleTemplate
-	url = https://github.com/RikkaApps/Riru-ModuleTemplate.git
+[submodule "3rdparty/MagiskModuleTemplate"]
+	path = 3rdparty/MagiskModuleTemplate
+	url = git@github.com:eritpchy/MagiskModuleTemplate.git
 [submodule "3rdparty/FingerprintIdentify"]
 	path = 3rdparty/FingerprintIdentify
 	url = git@github.com:eritpchy/FingerprintIdentify.git
