@@ -72,6 +72,7 @@ public class QQBasePlugin implements IAppPlugin, IMockCurrentUser {
     private WeakHashMap<Activity, QQPayDialog> mActivityPayDialogMap = new WeakHashMap<>();
     private int mQQVersionCode;
     private ViewTreeObserver.OnWindowAttachListener mPayWindowAttachListener;
+    private boolean mPayDialogTemporBlocking = false;
 
     @Override
     public int getVersionCode(Context context) {
@@ -118,6 +119,10 @@ public class QQBasePlugin implements IAppPlugin, IMockCurrentUser {
                 || activityClzName.contains(".QWalletToolFragmentActivity")) {
                 L.d("found");
                 if (!Config.from(activity).isOn()) {
+                    return;
+                }
+                if (mPayDialogTemporBlocking) {
+                    L.d("mPayDialogTemporBlocking=true");
                     return;
                 }
                 if (isActivityFirstResume(activity)) {
@@ -300,6 +305,12 @@ public class QQBasePlugin implements IAppPlugin, IMockCurrentUser {
                 if (longPassword) {
                     payDialog.okButton.performClick();
                 }
+                // 如果是非Biometric解锁, 由于ColorOS 15指纹识别出现弹窗, 这里会再次触发 PayDialog onResume
+                // 支付成功后临时压制5秒, 超时后才能再次发起
+                mPayDialogTemporBlocking = true;
+                Task.onBackground(5000, () -> {
+                    mPayDialogTemporBlocking = false;
+                });
             }, switchToPwdRunnable /** fail */);
         };
 
@@ -442,7 +453,7 @@ public class QQBasePlugin implements IAppPlugin, IMockCurrentUser {
         Context context = activity;
         int versionCode = getVersionCode(context);
         ViewGroup rootView = (ViewGroup) activity.getWindow().getDecorView();
-        View itemView = ViewUtils.findViewByText(rootView, "账号管理", "帐号管理");
+        View itemView = ViewUtils.findViewByText(rootView, "账号管理", "帐号管理", "账号与安全");
         View aboutView = versionCode >= Constant.QQ.QQ_VERSION_CODE_8_8_83 ?
                 ViewUtils.findViewByText(rootView, "通用") : itemView;
         FrameLayout itemContainerLayout = (FrameLayout) itemView.getParent().getParent().getParent();
@@ -466,12 +477,11 @@ public class QQBasePlugin implements IAppPlugin, IMockCurrentUser {
         LinearLayout itemHlinearLayout = new LinearLayout(activity);
         itemHlinearLayout.setOrientation(LinearLayout.HORIZONTAL);
         itemHlinearLayout.setWeightSum(1);
-        itemHlinearLayout.setBackgroundColor(Color.RED);
         itemHlinearLayout.setGravity(Gravity.CENTER_VERTICAL);
         itemHlinearLayout.setClickable(true);
         itemHlinearLayout.setOnClickListener(view -> new SettingsView(activity).showInDialog());
 
-        int defHPadding = DpUtils.dip2px(activity, 10);
+        int defHPadding = DpUtils.dip2px(activity, 11);
 
         TextView itemNameText = new TextView(activity);
         StyleUtils.apply(itemNameText);
