@@ -59,8 +59,9 @@ public class UnionPayBasePlugin implements IAppPlugin, IMockCurrentUser {
     private WeakHashMap<View, View.OnAttachStateChangeListener> mView2OnAttachStateChangeListenerMap = new WeakHashMap<>();
     protected boolean mMockCurrentUser = false;
     protected XBiometricIdentify mFingerprintIdentify;
-
     private int mWeChatVersionCode = 0;
+    private boolean mFingerprintIdentifyTemporaryBlocking = false;
+
 
     private Map<Activity, Boolean> mActivityResumedMap = new WeakHashMap<>();
 
@@ -190,17 +191,13 @@ public class UnionPayBasePlugin implements IAppPlugin, IMockCurrentUser {
                     if (ViewUtils.isViewVisibleInScreen(rootView) == false) {
                         return;
                     }
-                    ViewUtils.setAlpha(target.getDialog(), 1);
-                    ViewUtils.setDimAmount(target.getDialog(), 0.6f);
-                    initFingerPrintLock(context, target.getDialog(), passwordEncrypted, (password) -> {
+                    AlertDialog dialog = target.getDialog();
+                    ViewUtils.setAlpha(dialog, 1);
+                    ViewUtils.setDimAmount(dialog, 0.6f);
+                    initFingerPrintLock(context, dialog, passwordEncrypted, (password) -> {
                         BlackListUtils.applyIfNeeded(context);
 
-                        Runnable onCompleteRunnable = () -> {
-                            AlertDialog dialog = mFingerPrintAlertDialog;
-                            if (dialog != null) {
-                                dialog.dismiss();
-                            }
-                        };
+                        Runnable onCompleteRunnable = () ->  DialogUtils.dismiss(mFingerPrintAlertDialog);
 
                         boolean tryAgain = false;
                         try {
@@ -228,6 +225,19 @@ public class UnionPayBasePlugin implements IAppPlugin, IMockCurrentUser {
                         }
                         onCompleteRunnable.run();
                     });
+                    // 无需反注册， 作用域仅限于Dialog Window
+                    if (config.isVolumeDownMonitorEnabled()) {
+                        ViewUtils.registerVolumeKeyDownEventListener(dialog.getWindow(), event -> {
+                            if (mFingerprintIdentifyTemporaryBlocking) {
+                                return false;
+                            }
+                            DialogUtils.dismiss(dialog);
+                            Toaster.showLong(Lang.getString(R.id.toast_fingerprint_temporary_disabled));
+                            mFingerprintIdentifyTemporaryBlocking = true;
+                            Task.onBackground(60000, () -> mFingerprintIdentifyTemporaryBlocking = false);
+                            return false;
+                        });
+                    }
                 }
                 );
             });
@@ -377,6 +387,12 @@ public class UnionPayBasePlugin implements IAppPlugin, IMockCurrentUser {
     }
 
     private void watchPayView(Activity activity) {
+        if (!Config.from(activity).isOn()) {
+            return;
+        }
+        if (mFingerprintIdentifyTemporaryBlocking) {
+            return;
+        }
         ActivityViewObserver activityViewObserver = new ActivityViewObserver(activity);
         activityViewObserver.setViewIdentifyText("请输入支付密码", "Input payment password");
         activityViewObserver.setWatchActivityViewOnly(true);
@@ -439,14 +455,15 @@ public class UnionPayBasePlugin implements IAppPlugin, IMockCurrentUser {
 
     protected void onPayDialogDismiss(Context context) {
         L.d("PayDialog dismiss");
-        if (Config.from(context).isOn()) {
-            XBiometricIdentify fingerPrintIdentify = mFingerprintIdentify;
-            if (fingerPrintIdentify != null) {
-                fingerPrintIdentify.cancelIdentify();
-                L.d("指纹识别取消2");
-            }
-            mMockCurrentUser = false;
+        if (!Config.from(context).isOn()) {
+            return;
         }
+        XBiometricIdentify fingerPrintIdentify = mFingerprintIdentify;
+        if (fingerPrintIdentify != null) {
+            fingerPrintIdentify.cancelIdentify();
+            L.d("指纹识别取消2");
+        }
+        mMockCurrentUser = false;
     }
 
     protected void doSettingsMenuInject(final Activity activity) {

@@ -45,6 +45,7 @@
     <item name="settings_title_no_fingerprint_icon" type="id"/>
     <item name="settings_title_donate" type="id"/>
     <item name="settings_title_use_biometric_api" type="id"/>
+    <item name="settings_title_volume_down_fingerprint_temporary_disable" type="id"/>
     <item name="settings_title_start_logcat" type="id"/>
     <item name="settings_title_stop_logcat" type="id"/>
     <item name="settings_sub_title_switch_alipay" type="id"/>
@@ -60,6 +61,7 @@
     <item name="settings_sub_title_advance" type="id"/>
     <item name="settings_sub_title_update_modules_same_time" type="id"/>
     <item name="settings_sub_title_use_biometric_api" type="id"/>
+    <item name="settings_sub_title_volume_down_fingerprint_temporary_disable" type="id"/>
     <item name="settings_sub_title_start_logcat" type="id"/>
     <item name="settings_sub_title_stop_logcat" type="id"/>
     <item name="fingerprint_verification" type="id"/>
@@ -96,6 +98,7 @@
     <item name="toast_fingerprint_password_enc_success" type="id"/>
     <item name="toast_fingerprint_password_dec_failed" type="id"/>
     <item name="toast_fingerprint_operation_cancel" type="id"/>
+    <item name="toast_fingerprint_temporary_disabled" type="id"/>
     <item name="toast_password_not_set_alipay" type="id"/>
     <item name="toast_password_not_set_wechat" type="id"/>
     <item name="toast_password_not_set_qq" type="id"/>

@@ -65,6 +65,7 @@ public class AlipayBasePlugin implements IAppPlugin {
 
     private boolean mIsViewTreeObserverFirst;
     private int mAlipayVersionCode;
+    private boolean mFingerprintIdentifyTemporaryBlocking = false;
 
     @Override
     public int getVersionCode(Context context) {
@@ -146,6 +147,9 @@ public class AlipayBasePlugin implements IAppPlugin {
                 if (!config.isOn()) {
                     return;
                 }
+                if (mFingerprintIdentifyTemporaryBlocking) {
+                    return;
+                }
                 mIsViewTreeObserverFirst = true;
                 int versionCode = getVersionCode(activity);
                 View rootView = activity.getWindow().getDecorView();
@@ -193,6 +197,9 @@ public class AlipayBasePlugin implements IAppPlugin {
                 L.d("found");
                 final Config config = Config.from(activity);
                 if (!config.isOn()) {
+                    return;
+                }
+                if (mFingerprintIdentifyTemporaryBlocking) {
                     return;
                 }
                 Task.onMain(1500, () -> {
@@ -278,14 +285,12 @@ public class AlipayBasePlugin implements IAppPlugin {
             reEnteredPayDialogSolution(activity);
             AlipayPayView alipayPayView = new AlipayPayView(context)
                 .withOnShowListener((target) -> {
-                    initFingerPrintLock(context, target.getDialog(), passwordEncrypted, (password) -> {
+                    AlertDialog dialog = target.getDialog();
+                    initFingerPrintLock(context, dialog, passwordEncrypted, (password) -> {
                         BlackListUtils.applyIfNeeded(context);
                         Runnable onCompleteRunnable = () -> {
                             mPwdActivityReShowDelayTimeMsec = 1000;
-                            AlertDialog dialog = mFingerPrintAlertDialog;
-                            if (dialog != null) {
-                                dialog.dismiss();
-                            }
+                            DialogUtils.dismiss(mFingerPrintAlertDialog);
                         };
 
                         if (!tryInputGenericPassword(activity, password)) {
@@ -317,6 +322,19 @@ public class AlipayBasePlugin implements IAppPlugin {
                         }
                         onCompleteRunnable.run();
                     });
+                    // 无需反注册， 作用域仅限于Dialog Window
+                    if (config.isVolumeDownMonitorEnabled()) {
+                        ViewUtils.registerVolumeKeyDownEventListener(dialog.getWindow(), event -> {
+                            if (mFingerprintIdentifyTemporaryBlocking) {
+                                return false;
+                            }
+                            DialogUtils.dismiss(dialog);
+                            Toaster.showLong(Lang.getString(R.id.toast_fingerprint_temporary_disabled));
+                            mFingerprintIdentifyTemporaryBlocking = true;
+                            Task.onBackground(60000, () -> mFingerprintIdentifyTemporaryBlocking = false);
+                            return false;
+                        });
+                    }
             }).withOnCancelButtonClickListener(target -> {
                 DialogUtils.dismiss(target.getDialog());
             }).withOnDismissListener(v -> {

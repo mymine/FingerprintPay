@@ -121,6 +121,8 @@ public class Lang {
                 return tr("通用设置", "一般选项", "General");
             case R.id.settings_title_use_biometric_api:
                 return tr("使用 Biometric Api", "使用 Biometric Api", "Use Biometric Api");
+            case R.id.settings_title_volume_down_fingerprint_temporary_disable:
+                return tr("音量\uD83D\uDC47切换密码输入", "音量\uD83D\uDC47禁用切換密碼輸入", "Vol- for password input");
             case R.id.settings_title_start_logcat:
                 return tr("开始记录日志", "開始記錄日誌", "Start logging");
             case R.id.settings_title_stop_logcat:
@@ -151,6 +153,8 @@ public class Lang {
                 return tr("将同时升级以下模块", "將同時升級以下模塊", "The following modules will be upgraded at the same time");
             case R.id.settings_sub_title_use_biometric_api:
                 return tr("实验性, 仅 Android 9+ 可用", "實驗性, 僅 Android 9+ 可用", "Experimental, available only on Android 9+");
+            case R.id.settings_sub_title_volume_down_fingerprint_temporary_disable:
+                return tr("按下按键会临时禁用指纹支付1分钟(仅应用内认证有效)", "按下按鍵會臨時禁用指紋支付1分鐘(僅應用內認證有效)", "Pressing the button will temporarily disable fingerprint payment for 1 minute (only valid for in-app authentication)");
             case R.id.settings_sub_title_start_logcat:
                 return tr("开始 --> 你的表演 --> 停止 --> 发送给开发者", "開始 --> 你的表演 --> 停止 --> 發送給開發者", "Start --> Payment operation --> Stop --> Send to developer");
             case R.id.settings_sub_title_stop_logcat:
@@ -216,6 +220,8 @@ public class Lang {
                 return tr("支付密码解密失败, 请重新设定支付密码", "支付密码解密失败, 请重新设定支付密码", "Decryption of payment password failed, please reset the payment password");
             case R.id.toast_fingerprint_operation_cancel:
                 return tr("操作已取消", "操作已取消", "The operation has been canceled");
+            case R.id.toast_fingerprint_temporary_disabled:
+                return tr("指纹支付已临时禁用1分钟", "指紋支付已臨時禁用1分鐘", "Fingerprint payment has been temporarily disabled for 1 minute");
             case R.id.toast_password_not_set_alipay:
                 return tr("未设定支付密码，请前往設置->指紋設置中设定支付宝的支付密码", "未設定支付密碼，請前往設置 -> 指紋設置中設定支付寶的支付密碼", "Payment password not set, please goto Settings -> Fingerprint to enter you payment password");
             case R.id.toast_password_not_set_taobao:

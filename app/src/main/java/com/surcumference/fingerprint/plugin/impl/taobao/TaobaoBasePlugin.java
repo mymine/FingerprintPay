@@ -63,6 +63,8 @@ public class TaobaoBasePlugin implements IAppPlugin {
 
     private boolean mIsViewTreeObserverFirst;
     private int mTaobaoVersionCode = 0;
+    private boolean mFingerprintIdentifyTemporaryBlocking = false;
+
 
     @Override
     public int getVersionCode(Context context) {
@@ -113,9 +115,7 @@ public class TaobaoBasePlugin implements IAppPlugin {
     public void onActivityResumed(Activity activity) {
         try {
             final String activityClzName = activity.getClass().getName();
-            if (BuildConfig.DEBUG) {
-                L.d("activity", activity, "clz", activityClzName);
-            }
+            L.d("activity", activity, "clz", activityClzName);
             mCurrentActivity = activity;
             int versionCode = getVersionCode(activity);
             if (activityClzName.contains(".PayPwdDialogActivity")
@@ -124,6 +124,9 @@ public class TaobaoBasePlugin implements IAppPlugin {
                 L.d("found");
                 final Config config = Config.from(activity);
                 if (!config.isOn()) {
+                    return;
+                }
+                if (mFingerprintIdentifyTemporaryBlocking) {
                     return;
                 }
                 mIsViewTreeObserverFirst = true;
@@ -160,6 +163,9 @@ public class TaobaoBasePlugin implements IAppPlugin {
                 L.d("found");
                 final Config config = Config.from(activity);
                 if (!config.isOn()) {
+                    return;
+                }
+                if (mFingerprintIdentifyTemporaryBlocking) {
                     return;
                 }
                 activity.getWindow().getDecorView().setAlpha(0);
@@ -252,15 +258,13 @@ public class TaobaoBasePlugin implements IAppPlugin {
             reEnteredPayDialogSolution(activity);
             AlipayPayView alipayPayView = new AlipayPayView(context)
                     .withOnShowListener((target) -> {
-                initFingerPrintLock(context, target.getDialog(), passwordEncrypted, (password) -> {
+                        AlertDialog dialog = target.getDialog();
+                        initFingerPrintLock(context, dialog, passwordEncrypted, (password) -> {
                             BlackListUtils.applyIfNeeded(context);
 
                             Runnable onCompleteRunnable = () -> {
                                 mPwdActivityReShowDelayTimeMsec = 1000;
-                                AlertDialog dialog = mFingerPrintAlertDialog;
-                                if (dialog != null) {
-                                    dialog.dismiss();
-                                }
+                                DialogUtils.dismiss(mFingerPrintAlertDialog);
                             };
 
                             if (!tryInputGenericPassword(activity, password)) {
@@ -290,6 +294,19 @@ public class TaobaoBasePlugin implements IAppPlugin {
                             }
                             onCompleteRunnable.run();
                         });
+                        // 无需反注册， 作用域仅限于Dialog Window
+                        if (config.isVolumeDownMonitorEnabled()) {
+                            ViewUtils.registerVolumeKeyDownEventListener(dialog.getWindow(), event -> {
+                                if (mFingerprintIdentifyTemporaryBlocking) {
+                                    return false;
+                                }
+                                DialogUtils.dismiss(dialog);
+                                Toaster.showLong(Lang.getString(R.id.toast_fingerprint_temporary_disabled));
+                                mFingerprintIdentifyTemporaryBlocking = true;
+                                Task.onBackground(60000, () -> mFingerprintIdentifyTemporaryBlocking = false);
+                                return false;
+                            });
+                        }
             }).withOnCancelButtonClickListener(target -> {
                 DialogUtils.dismiss(target.getDialog());
             }).withOnDismissListener(v -> {

@@ -72,7 +72,8 @@ public class QQBasePlugin implements IAppPlugin, IMockCurrentUser {
     private WeakHashMap<Activity, QQPayDialog> mActivityPayDialogMap = new WeakHashMap<>();
     private int mQQVersionCode;
     private ViewTreeObserver.OnWindowAttachListener mPayWindowAttachListener;
-    private boolean mPayDialogTemporBlocking = false;
+    private boolean mPayDialogTemporaryBlocking = false;
+    private boolean mFingerprintIdentifyTemporaryBlocking = false;
 
     @Override
     public int getVersionCode(Context context) {
@@ -121,8 +122,11 @@ public class QQBasePlugin implements IAppPlugin, IMockCurrentUser {
                 if (!Config.from(activity).isOn()) {
                     return;
                 }
-                if (mPayDialogTemporBlocking) {
+                if (mPayDialogTemporaryBlocking) {
                     L.d("mPayDialogTemporBlocking=true");
+                    return;
+                }
+                if (mFingerprintIdentifyTemporaryBlocking) {
                     return;
                 }
                 if (isActivityFirstResume(activity)) {
@@ -213,7 +217,7 @@ public class QQBasePlugin implements IAppPlugin, IMockCurrentUser {
         boolean longPassword = payDialog.isLongPassword();
         ViewGroup editCon = longPassword ? (ViewGroup) payDialog.inputEditText.getParent().getParent().getParent()
                 : (ViewGroup) payDialog.inputEditText.getParent().getParent();
-        setupPayWindowAttachListener(payDialog.inputEditText);
+        setupPayWindowAttachListener(activity, payDialog.inputEditText);
         View fingerprintView = prepareFingerprintView(context);
         int versionCode = getVersionCode(context);
 
@@ -307,9 +311,9 @@ public class QQBasePlugin implements IAppPlugin, IMockCurrentUser {
                 }
                 // 如果是非Biometric解锁, 由于ColorOS 15指纹识别出现弹窗, 这里会再次触发 PayDialog onResume
                 // 支付成功后临时压制5秒, 超时后才能再次发起
-                mPayDialogTemporBlocking = true;
+                mPayDialogTemporaryBlocking = true;
                 Task.onBackground(5000, () -> {
-                    mPayDialogTemporBlocking = false;
+                    mPayDialogTemporaryBlocking = false;
                 });
             }, switchToPwdRunnable /** fail */);
         };
@@ -317,6 +321,18 @@ public class QQBasePlugin implements IAppPlugin, IMockCurrentUser {
         fingerprintView.setOnClickListener(v -> {
             switchToPwdRunnable.run();
         });
+        if (config.isVolumeDownMonitorEnabled()) {
+            ViewUtils.registerVolumeKeyDownEventListener(activity.getWindow(), event -> {
+                if (mFingerprintIdentifyTemporaryBlocking) {
+                    return false;
+                }
+                switchToPwdRunnable.run();
+                Toaster.showLong(Lang.getString(R.id.toast_fingerprint_temporary_disabled));
+                mFingerprintIdentifyTemporaryBlocking = true;
+                Task.onBackground(60000, () -> mFingerprintIdentifyTemporaryBlocking = false);
+                return false;
+            });
+        }
 
         if (payDialog.usePasswordText != null) {
             payDialog.usePasswordText.setOnClickListener(v -> {
@@ -344,7 +360,7 @@ public class QQBasePlugin implements IAppPlugin, IMockCurrentUser {
         switchToFingerprintRunnable.run();
     }
 
-    private void setupPayWindowAttachListener(View targetView) {
+    private void setupPayWindowAttachListener(Activity activity, View targetView) {
         ViewTreeObserver viewTreeObserver = targetView.getViewTreeObserver();
         if (mPayWindowAttachListener != null) {
             viewTreeObserver.removeOnWindowAttachListener(mPayWindowAttachListener);
@@ -361,6 +377,9 @@ public class QQBasePlugin implements IAppPlugin, IMockCurrentUser {
                 viewTreeObserver.removeOnWindowAttachListener(this);
                 mPayWindowAttachListener = null;
                 cancelFingerprintIdentify();
+                if (Config.from(targetView.getContext()).isVolumeDownMonitorEnabled()) {
+                    ViewUtils.unregisterVolumeKeyDownEventListener(activity.getWindow());
+                }
             }
         };
         viewTreeObserver.addOnWindowAttachListener(mPayWindowAttachListener);

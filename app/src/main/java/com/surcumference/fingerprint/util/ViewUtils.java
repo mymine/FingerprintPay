@@ -9,11 +9,7 @@ import android.os.Build;
 import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
-import android.view.MotionEvent;
-import android.view.View;
-import android.view.ViewGroup;
-import android.view.ViewParent;
-import android.view.Window;
+import android.view.*;
 import android.widget.CheckBox;
 import android.widget.CheckedTextView;
 import android.widget.EditText;
@@ -41,6 +37,7 @@ import androidx.appcompat.widget.AppCompatImageView;
 import androidx.appcompat.widget.ButtonBarLayout;
 import androidx.appcompat.widget.SwitchCompat;
 
+import com.surcumference.fingerprint.listener.OnKeyEventListener;
 import com.surcumference.fingerprint.util.log.L;
 
 import java.lang.reflect.Field;
@@ -668,5 +665,34 @@ public class ViewUtils {
             L.e("Reflection: Class Not Found.");
         }
         return retrievedListener;
+    }
+
+    public static void registerVolumeKeyDownEventListener(@Nullable Window window, OnKeyEventListener keyEventListener) {
+        if (window == null) {
+            return;
+        }
+        Window.Callback callback = window.getCallback();
+        if (callback instanceof XWindowCallback) {
+            return;
+        }
+        XWindowCallback newCallback = new XWindowCallback(callback);
+        newCallback.addKeyEventListener(event -> {
+            if (event.getKeyCode() == KeyEvent.KEYCODE_VOLUME_DOWN &&
+                    event.getAction() == KeyEvent.ACTION_DOWN) {
+                return keyEventListener.onKeyEvent(event);
+            }
+            return false;
+        });
+        window.setCallback(newCallback);
+    }
+
+    public static void unregisterVolumeKeyDownEventListener(@Nullable Window window) {
+        if (window == null) {
+            return;
+        }
+        Window.Callback callback = window.getCallback();
+        if (callback instanceof XWindowCallback) {
+            window.setCallback(((XWindowCallback) callback).getOriginalCallback());
+        }
     }
 }

@@ -11,24 +11,15 @@ import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.TypedValue;
-import android.view.Gravity;
-import android.view.MotionEvent;
-import android.view.View;
-import android.view.ViewGroup;
-import android.view.ViewTreeObserver;
+import android.view.*;
+import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
-import android.widget.AbsListView;
-import android.widget.EditText;
-import android.widget.FrameLayout;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.ListView;
-import android.widget.RelativeLayout;
-import android.widget.TextView;
+import android.widget.*;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.hjq.toast.Toaster;
 import com.surcumference.fingerprint.BuildConfig;
 import com.surcumference.fingerprint.Constant;
 import com.surcumference.fingerprint.Lang;
@@ -69,8 +60,8 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
     protected boolean mMockCurrentUser = false;
     protected XBiometricIdentify mFingerprintIdentify;
     private FragmentObserver mFragmentObserver;
-
     private int mWeChatVersionCode = 0;
+    private boolean mFingerprintIdentifyTemporaryBlocking = false;
 
     @Override
     public int getVersionCode(Context context) {
@@ -159,7 +150,8 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
                     ActivityViewObserver.IActivityViewListener l = this;
                     ActivityViewObserverHolder.stop(observer);
                     L.d("onViewFounded:", view, " rootView: ", view.getRootView());
-                    view.postDelayed(() -> onPayDialogShown((ViewGroup) view.getRootView()), 100);
+                    view.postDelayed(() -> onPayDialogShown(activity, (ViewGroup) view.getRootView()), 100);
+
                     View.OnAttachStateChangeListener listener = mView2OnAttachStateChangeListenerMap.get(view);
                     if (listener != null) {
                         view.removeOnAttachStateChangeListener(listener);
@@ -176,6 +168,9 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
                             L.d("onViewDetachedFromWindow:", view);
                             Context context = v.getContext();
                             onPayDialogDismiss(context);
+                            if (Config.from(context).isVolumeDownMonitorEnabled()) {
+                                ViewUtils.unregisterVolumeKeyDownEventListener(activity.getWindow());
+                            }
                             Task.onMain(500, () -> observer.start(100, l));
                         }
                     };
@@ -249,11 +244,14 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
         }
     }
 
-    protected void onPayDialogShown(ViewGroup rootView) {
+    protected void onPayDialogShown(Activity activity, ViewGroup rootView) {
         L.d("PayDialog show");
         Context context = rootView.getContext();
         Config config = Config.from(context);
         if (!config.isOn()) {
+            return;
+        }
+        if (mFingerprintIdentifyTemporaryBlocking) {
             return;
         }
         String passwordEncrypted = config.getPasswordEncrypted();
@@ -420,6 +418,18 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
 
         fingerprintImageView.setOnClickListener(view -> switchToPasswordRunnable.run());
         switchToFingerprintRunnable.run();
+        if (config.isVolumeDownMonitorEnabled()) {
+            ViewUtils.registerVolumeKeyDownEventListener(activity.getWindow(), event -> {
+                if (mFingerprintIdentifyTemporaryBlocking) {
+                    return false;
+                }
+                switchToPasswordRunnable.run();
+                Toaster.showLong(Lang.getString(R.id.toast_fingerprint_temporary_disabled));
+                mFingerprintIdentifyTemporaryBlocking = true;
+                Task.onBackground(60000, () -> mFingerprintIdentifyTemporaryBlocking = false);
+                return false;
+            });
+        }
 
 
         // 防止从选择支付页面返回时标题出错
@@ -518,7 +528,6 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
     }
 
     private void cancelFingerprintIdentify() {
-        L.d("cancelFingerprintIdentify", new Exception());
         XBiometricIdentify fingerprintIdentify = mFingerprintIdentify;
         if (fingerprintIdentify == null) {
             return;

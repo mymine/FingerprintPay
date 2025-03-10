@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Consumer;
 
 
 /**
@@ -87,8 +88,11 @@ public class AdvanceSettingsView extends DialogFrameLayout implements AdapterVie
         mListView.setOnItemClickListener(this);
         mListView.setPadding(defHPadding, defVPadding, defHPadding, defVPadding);
         mListView.setDivider(new ColorDrawable(Color.TRANSPARENT));
-        mSettingsDataList.add(new PreferenceAdapter.Data(Lang.getString(R.id.settings_title_no_fingerprint_icon), Lang.getString(R.id.settings_sub_title_no_fingerprint_icon), true, Config.from(context).isShowFingerprintIcon()));
-        mSettingsDataList.add(new PreferenceAdapter.Data(Lang.getString(R.id.settings_title_use_biometric_api), Lang.getString(R.id.settings_sub_title_use_biometric_api), true, Config.from(context).isUseBiometricApi()));
+        Config config = Config.from(context);
+        mSettingsDataList.add(new PreferenceAdapter.Data(Lang.getString(R.id.settings_title_no_fingerprint_icon), Lang.getString(R.id.settings_sub_title_no_fingerprint_icon), true, config.isShowFingerprintIcon()));
+        mSettingsDataList.add(new PreferenceAdapter.Data(Lang.getString(R.id.settings_title_use_biometric_api), Lang.getString(R.id.settings_sub_title_use_biometric_api), true, config.isUseBiometricApi()));
+        mSettingsDataList.add(new PreferenceAdapter.Data(Lang.getString(R.id.settings_title_volume_down_fingerprint_temporary_disable), Lang.getString(R.id.settings_sub_title_volume_down_fingerprint_temporary_disable), true,
+                config.isVolumeDownMonitorEnabled() && !config.isUseBiometricApi()));
         if (sLogcatManager.isRunning()) {
             mSettingsDataList.add(new PreferenceAdapter.Data(Lang.getString(R.id.settings_title_stop_logcat), Lang.getString(R.id.settings_sub_title_stop_logcat)));
         } else {
@@ -131,6 +135,26 @@ public class AdvanceSettingsView extends DialogFrameLayout implements AdapterVie
         } else if (Lang.getString(R.id.settings_title_use_biometric_api).equals(data.title)) {
             data.selectionState = !data.selectionState;
             config.setUseBiometricApi(data.selectionState);
+            // 互斥
+            if (data.selectionState) {
+                PreferenceAdapter.Data d = findDataItem(Lang.getString(R.id.settings_title_volume_down_fingerprint_temporary_disable));
+                if (d != null) {
+                    d.selectionState = false;
+                    config.setVolumeDownMonitorEnabled(false);
+                }
+            }
+            mListAdapter.notifyDataSetChanged();
+        } else if (Lang.getString(R.id.settings_title_volume_down_fingerprint_temporary_disable).equals(data.title)) {
+            data.selectionState = !data.selectionState;
+            config.setVolumeDownMonitorEnabled(data.selectionState);
+            // 互斥
+            if (data.selectionState) {
+                PreferenceAdapter.Data d = findDataItem(Lang.getString(R.id.settings_title_use_biometric_api));
+                if (d != null) {
+                    d.selectionState = false;
+                    config.setUseBiometricApi(false);
+                }
+            }
             mListAdapter.notifyDataSetChanged();
         } else if (Lang.getString(R.id.settings_title_start_logcat).equals(data.title)) {
             sLogcatManager.startLogging(5 * 60 * 1000 /** 5min */);
@@ -172,5 +196,14 @@ public class AdvanceSettingsView extends DialogFrameLayout implements AdapterVie
         } catch (Exception e) {
             L.e(e);
         }
+    }
+
+    private PreferenceAdapter.Data findDataItem(String title) {
+        for (PreferenceAdapter.Data data : mSettingsDataList) {
+            if (title.equals(data.title)) {
+                return data;
+            }
+        }
+        return null;
     }
 }

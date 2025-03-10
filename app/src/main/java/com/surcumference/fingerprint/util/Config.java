@@ -107,6 +107,14 @@ public class Config {
         mCache.sharedPreferences.edit().putBoolean("biometric_api", on).apply();
     }
 
+    public boolean isVolumeDownMonitorEnabled() {
+        return mCache.sharedPreferences.getBoolean("volume_down_monitor_enabled", true);
+    }
+
+    public void setVolumeDownMonitorEnabled(boolean on) {
+        mCache.sharedPreferences.edit().putBoolean("volume_down_monitor_enabled", on).apply();
+    }
+
     public void setSkipVersion(String version) {
         mCache.sharedPreferences.edit().putString("skip_version", version).apply();
         mCache.mainAppSharedPreferences.edit().putString("skip_version", version).apply();
