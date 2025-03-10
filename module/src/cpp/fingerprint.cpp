@@ -10,8 +10,9 @@
 
 #include <riru.h>
 
-#include "fingerprint.h"
 #include "log.h"
+#include "fingerprint.h"
+#include "resource_extractor.h"
 
 static bool sHookEnable = false;
 static char *sAppDataDir = NULL;
@@ -138,16 +139,22 @@ void fingerprintPost(JNIEnv *env, const char *pluginTypeName) {
         char appCacheDir[PATH_MAX] = {0};
         snprintf(appCacheDir, PATH_MAX - 1, "%s/cache", sAppDataDir);
         if (access(appCacheDir, 0) != 0) mkdir(appCacheDir, 0755);
+        char appFilesDir[PATH_MAX] = {0};
+        snprintf(appFilesDir, PATH_MAX - 1, "%s/files", sAppDataDir);
+        if (access(appFilesDir, 0) != 0) mkdir(appFilesDir, 0755);
 
-        const char *dexPath = "/data/local/tmp/lib" MODULE_NAME ".debug.dex";
+        char dexPath[PATH_MAX] = {0};
+        snprintf(dexPath, PATH_MAX - 1, "%s/" MODULE_NAME ".dex", appFilesDir);
+#ifdef NDEBUG
+        extractDexResource(dexPath);
+#else
+        LOGD("=======================================================");
+        LOGD("==================== DEBUG MODE ON ====================");
+        LOGD("=======================================================");
         if (access(dexPath, 0) != 0) {
-            dexPath = "/system/framework/lib" MODULE_NAME ".dex";
+            extractDexResource(dexPath);
         }
-        //https://github.com/eritpchy/FingerprintPay/issues/107
-        if (access(dexPath, 0) != 0) {
-            LOGE("Error: dexPath:%s is not accessible", dexPath);
-            dexPath = "/data/local/tmp/lib" MODULE_NAME ".dex";
-        }
+#endif
         if (access(dexPath, 0) != 0) {
             LOGE("Error: dexPath:%s is not accessible", dexPath);
             return;

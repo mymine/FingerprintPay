@@ -12,10 +12,6 @@ MODULE_LIB_NAME="$(echo "$PLUGIN_TYPE_NAME" | tr '[:upper:]' '[:lower:]')-module
 echo VERSION_NAME: $VERSION_NAME
 echo VERSION_CODE: $VERSION_CODE
 bash ./reset.sh
-echo "updateJson=\${updateJson}" >> $MODULE_TEMPLATE/template/magisk_module/module.prop
-perl -i -pe  's/(description: moduleDescription,)/$1 \nupdateJson: moduleUpdateJson,/g'  $MODULE_TEMPLATE/module/build.gradle
-echo org.gradle.java.home="$(java_home || echo "$JAVA_HOME_15")" >> $MODULE_TEMPLATE/gradle.properties
-
 cp -rfv ./src/cpp/* $MODULE_TEMPLATE/module/src/main/cpp/
 cp -rfv "$MODULE_GRALDE_FILE" $MODULE_TEMPLATE/module.gradle
 cp -rfv "./src/gradle/fingerprint.gradle" $MODULE_TEMPLATE/
@@ -35,9 +31,7 @@ perl -0777 -i -pe  's/(forkAndSpecializePost[\W\w]+?{[\W\w]*?)}/$1    fingerprin
 perl -0777 -i -pe  's/(specializeAppProcessPre[\W\w]+?{[\W\w]+?)}/$1    fingerprintPre(env, appDataDir, niceName);\n}/'  $MODULE_TEMPLATE/module/src/main/cpp/main.cpp
 perl -0777 -i -pe  's/(specializeAppProcessPost[\W\w]+?{[\W\w]+?)}/$1    fingerprintPost(env, MAGISK_MODULE_TYPE_RIRU);\n}/'  $MODULE_TEMPLATE/module/src/main/cpp/main.cpp
 perl -0777 -i -pe  's/^/#include "fingerprint.h"\n/'  $MODULE_TEMPLATE/module/src/main/cpp/main.cpp
-perl -i -pe  's/(main\.cpp)/$1 fingerprint.cpp zygisk_main.cpp/g'  $MODULE_TEMPLATE/module/src/main/cpp/CMakeLists.txt
-echo 'add_definitions(-DMODULE_NAME="${MODULE_NAME}")' >> $MODULE_TEMPLATE/module/src/main/cpp/CMakeLists.txt
-echo 'target_link_libraries(${MODULE_NAME})' >> $MODULE_TEMPLATE/module/src/main/cpp/CMakeLists.txt
+perl -i -pe  's/(main\.cpp)/$1 fingerprint.cpp zygisk_main.cpp resource_extractor.cpp/g'  $MODULE_TEMPLATE/module/src/main/cpp/CMakeLists.txt
 $MODULE_TEMPLATE/gradlew -p $MODULE_TEMPLATE clean \
   -PVERSION_NAME=$VERSION_NAME \
   -PVERSION_CODE=$VERSION_CODE \

@@ -35,12 +35,9 @@ mv -f "$MODPATH/zygisk/lib$ZYGISK_MODULE_LIB_NAME.so" "$MODPATH/zygisk/x86.so"
 extract "$ZIPFILE" "lib/x86_64/lib$ZYGISK_MODULE_LIB_NAME.so" "$MODPATH/zygisk" true
 mv -f "$MODPATH/zygisk/lib$ZYGISK_MODULE_LIB_NAME.so" "$MODPATH/zygisk/x86_64.so"
 ui_print "- Extracting extra libraries"
-extract "$ZIPFILE" "system/framework/lib$ZYGISK_MODULE_LIB_NAME.dex" "$MODPATH"
 set_perm_recursive "$MODPATH" 0 0 0755 0644
 extract "$ZIPFILE" 'post-fs-data.sh' "$MODPATH"
 set_perm "$MODPATH/post-fs-data.sh"  0 0 0755 0755
-rm -f "/data/local/tmp/lib$ZYGISK_MODULE_LIB_NAME.debug.dex" || true
-cp -fv "$MODPATH/system/framework/lib$ZYGISK_MODULE_LIB_NAME.dex" "/data/local/tmp/lib$ZYGISK_MODULE_LIB_NAME.dex"
-chmod 0644 "/data/local/tmp/lib$ZYGISK_MODULE_LIB_NAME.dex"
+rm -f "/data/local/tmp/lib$ZYGISK_MODULE_LIB_NAME.dex" > /dev/null 2>&1 || true
 
 set_perm_recursive "$MODPATH" 0 0 0755 0644
