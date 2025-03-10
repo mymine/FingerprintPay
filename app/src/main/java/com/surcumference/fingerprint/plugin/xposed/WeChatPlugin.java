@@ -65,6 +65,7 @@ public class WeChatPlugin {
                 }
             });
         } catch (Throwable l) {
+            L.e(l);
             XposedBridge.log(l);
         }
     }

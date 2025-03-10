@@ -54,6 +54,7 @@ public class TaobaoPlugin {
                 }
             });
         } catch (Throwable l) {
+            L.e(l);
             XposedBridge.log(l);
         }
     }

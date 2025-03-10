@@ -52,6 +52,7 @@ public class UnionPayPlugin {
                 }
             });
         } catch (Throwable l) {
+            L.e(l);
             XposedBridge.log(l);
         }
     }

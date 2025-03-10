@@ -93,6 +93,7 @@ public class QQPlugin {
                 }
             });
         } catch (Throwable l) {
+            L.e(l);
             XposedBridge.log(l);
         }
     }
