@@ -2,11 +2,10 @@ apply plugin: 'com.android.application'
 
 android {
 
-    compileSdkVersion 33
+    compileSdk 34
     defaultConfig {
         applicationId "com.surcumference.fingerprintpay"
         minSdkVersion 14
-        targetSdkVersion 33
         versionCode 34
         versionName "6.0.0"
         buildConfigField "String", "APP_PRODUCT_NAME", "\"FingerprintPay\""
