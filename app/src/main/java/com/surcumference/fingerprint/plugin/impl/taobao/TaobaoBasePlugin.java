@@ -8,11 +8,13 @@ import android.content.Context;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.*;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -328,10 +330,6 @@ public class TaobaoBasePlugin implements IAppPlugin {
         ViewUtils.getChildViewsByRegex(rootView, ".*选中,.+", paymentMethodsViewList);
         long paymentMethodsViewListSize = paymentMethodsViewList.size();
         for (int i = 0; i < paymentMethodsViewListSize; i++) {
-            if (i == paymentMethodsViewListSize - 1) {
-                // 最后一个
-                continue;
-            }
             View paymentMethodView = paymentMethodsViewList.get(i);
             L.d("paymentMethodView", ViewUtils.getViewInfo(paymentMethodView));
             // 只取第一次, 防止多次调用造成出错
@@ -380,39 +378,18 @@ public class TaobaoBasePlugin implements IAppPlugin {
                 outViewList.add(shortPwdView);
             }
         });
-        ActivityViewObserverHolder.start(ActivityViewObserverHolder.Key.TaobaoPasswordView,
+        ActivityViewObserverHolder.start(ActivityViewObserverHolder.Key.AlipayPasswordView,
                 activityViewObserver, 300, (observer, view) -> {
                     ActivityViewObserverHolder.stop(observer);
                     L.d("找到密码框", view);
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
-                        view.setOnFocusChangeListener(new View.OnFocusChangeListener() {
-                            private boolean lastFocusState = true; //初始化默认给true
-                            @Override
-                            public void onFocusChange(View v, boolean hasFocus) {
-                                L.d("密码框", "onFocusChange", view, hasFocus);
-                                try {
-                                    // 如果失去焦点并且获得新焦点, 通常是切换支付方式, 尝试重新触发识别
-                                    if (!lastFocusState && hasFocus) {
-                                        // 如果支付方式点了第一项, 页面会刷新, 需要重建OnclickListener
-                                        Task.onMain(666, () -> {
-                                            setupPaymentItemOnClickListener(rootView);
-                                        });
-                                        AlertDialog dialog = mFingerPrintAlertDialog;
-                                        if (dialog == null) {
-                                            return;
-                                        }
-                                        if (!dialog.isShowing()) {
-                                            dialog.show();
-                                        }
-                                    }
-                                } finally {
-                                    lastFocusState = hasFocus;
-                                }
-
-                            }
-
-                        });
-                    }
+                    Object debounceToken = new Object();
+                    Handler debounceHandler = view.getHandler();
+                    view.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
+                        debounceHandler.removeCallbacksAndMessages(debounceToken);
+                        debounceHandler.postAtTime(() -> {
+                            setupPaymentItemOnClickListener(rootView);
+                        }, debounceToken, SystemClock.uptimeMillis() + 666);
+                    });
                 },
                 10000);
     }
