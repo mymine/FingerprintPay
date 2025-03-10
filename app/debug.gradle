@@ -1,55 +1,90 @@
-def ADB_PATH = "${android.getSdkDirectory()}/platform-tools/adb"
+ext {
+    adbPath = "${android.getSdkDirectory()}/platform-tools/adb"
+    buildXposed = false
+}
+def adbPushToAppFiles(dexPath, targetName, targetPackage) {
+    exec {
+        executable = adbPath
+        args = ['push', dexPath, "/data/local/tmp/${targetName}"]
+    }
+    exec {
+        executable = adbPath
+        args = ["shell", "su", "-c", 
+            """"NAME=${targetName} && \
+            mv /data/local/tmp/\\\$NAME /data/data/$targetPackage/files/\\\$NAME && \
+            chmod 444 /data/data/$targetPackage/files/\\\$NAME && \
+            UID=\\\$(stat -c "%u" /data/data/$targetPackage) && \
+            GID=\\\$(stat -c "%g" /data/data/$targetPackage) && \
+            chown \\\$UID:\\\$GID /data/data/$targetPackage/files/\\\$NAME && \
+            true" """]
+    }
+}
+
 project.ext.appInfo.each {entry ->
     def name = entry.key
     def packageName = entry.value
     def stopTask = tasks.create(name: "stop$name", type: Exec) {
         doFirst { println "Stop $name..." }
-        executable = ADB_PATH
+        executable = adbPath
         args = ['shell', "am force-stop $packageName"]
     }
     def startTask = tasks.create(name: "start$name", dependsOn: [stopTask], type: Exec) {
         doFirst { println "Start $name..." }
-        executable = ADB_PATH
+        executable = adbPath
         args = ['shell', "sleep 3;am start \$(cmd package resolve-activity --brief ${packageName} | tail -n 1)"]
     }
     def debugXposedTask = tasks.create(name: "debug${name}Xposed", dependsOn: ["installDebug", stopTask], type: Exec) {
-        executable = ADB_PATH
+        executable = adbPath
         args = ['shell', "package=${android.defaultConfig.applicationId}&& cp -f \$(pm path \$package| cut -d: -f2) /data/local/tmp/\$package.apk && chmod 777 /data/local/tmp/\$package.apk"]
     }
     debugXposedTask.finalizedBy(startTask)
-    def debugRiruTask = tasks.create(name: "debug${name}Riru", dependsOn: ["mergeDexDebug"], type: Exec) {
-        def classDexPath = new File(project.buildDir, "intermediates/dex/debug/mergeDexDebug/classes.dex").absolutePath
-        executable = ADB_PATH
-        args = ['push', classDexPath, "/data/local/tmp/libriru-module-xfingerprint-pay-${name.toLowerCase()}.debug.dex"]
-        doLast {
-            exec {
-                executable = ADB_PATH
-                args = ["shell", "chmod", "a-w", "/data/local/tmp/libriru-module-xfingerprint-pay-${name.toLowerCase()}.debug.dex"]
-            }
-        }
-    }
-    debugRiruTask.finalizedBy(startTask)
-    def debugZygiskTask = tasks.create(name: "debug${name}Zygisk", dependsOn: ["mergeDexDebug"], type: Exec) {
-        def classDexPath = new File(project.buildDir, "intermediates/dex/debug/mergeDexDebug/classes.dex").absolutePath
-        executable = ADB_PATH
-        args = ['push', classDexPath, "/data/local/tmp/libzygisk-module-xfingerprint-pay-${name.toLowerCase()}.debug.dex"]
-        doLast {
-            exec {
-                executable = ADB_PATH
-                args = ["shell", "chmod", "a-w", "/data/local/tmp/libzygisk-module-xfingerprint-pay-${name.toLowerCase()}.debug.dex"]
-            }
-        }
-    }
-    debugZygiskTask.finalizedBy(startTask)
 }
 
 android.applicationVariants.all { variant ->
     variant.getCompileConfiguration().resolutionStrategy {
+        def buildType = variant.getBuildType()
+        def buildTypeName = buildType.name
+        def buildTypeNameCapitalize = buildTypeName.capitalize()
+        def isMinifyEnabled = buildType.isMinifyEnabled()
+        def minifyTask = tasks.findByName("minifyReleaseWithR8")
+        def dexTask = tasks.findByName(isMinifyEnabled ? "minify${buildTypeNameCapitalize}WithR8" : "mergeDex${buildTypeNameCapitalize}")
+        if (minifyTask) {
+            minifyTask.doFirst {
+                if (buildXposed) {
+                    return
+                }
+                def aaptRulesFile = file("${buildDir}/intermediates/aapt_proguard_file/release/aapt_rules.txt")
+                if (aaptRulesFile.exists()) {
+                    aaptRulesFile.delete()
+                }
+            }
+        }
+        tasks.create(name: "assemble${buildTypeNameCapitalize}Xposed", dependsOn: [variant.assemble]) {
+            buildXposed = true
+        }
+        
+        project.ext.appInfo.each {entry ->
+            def name = entry.key
+            def packageName = entry.value
+            def startTask = tasks.findByName("start$name")
+            def stopTask = tasks.findByName("stop$name")
+
+            project.ext.moduleFrameworks.each { framework ->
+                def moduleTask = tasks.create(name: "${buildTypeName}${name}${framework.capitalize()}", dependsOn: [dexTask]) {
+                    doLast {
+                        def dexPath = fileTree(dir: new File(project.buildDir, "intermediates/dex/${buildTypeName}"), include: '**/classes.dex').files.sort { it.lastModified() }.last().absolutePath
+                        adbPushToAppFiles(dexPath, "${framework}-module-xfingerprint-pay-${name.toLowerCase()}.dex", packageName)
+                    }
+                }
+                moduleTask.finalizedBy(startTask)
+            }
+        }
+
         if (variant.install != null) {
             variant.install.doLast {
                 println "Running app..."
                 exec {
-                    executable = ADB_PATH
+                    executable = adbPath
                     args = ['shell', "monkey -p ${variant.applicationId} -c android.intent.category.LAUNCHER 1"]
                 }
             }

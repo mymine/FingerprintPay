@@ -16,7 +16,7 @@ android {
             minifyEnabled false
             shrinkResources false
             zipAlignEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            proguardFiles 'proguard-rules.pro'
         }
     }
 
@@ -57,6 +57,7 @@ project.ext.appInfo = [
     WeChat:     "com.tencent.mm",
     UnionPay:   "com.unionpay",
 ]
+project.ext.moduleFrameworks = ['riru', 'zygisk']
 
 apply from: 'debug.gradle'
 apply from: 'update-json.gradle'
