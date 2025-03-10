@@ -13,6 +13,8 @@ import android.app.Instrumentation;
 import android.content.pm.PackageManager;
 import android.text.TextUtils;
 
+import androidx.annotation.Keep;
+
 import com.surcumference.fingerprint.BuildConfig;
 import com.surcumference.fingerprint.plugin.xposed.AlipayPlugin;
 import com.surcumference.fingerprint.plugin.xposed.QQPlugin;
@@ -28,7 +30,7 @@ import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 
-
+@Keep
 public class XposedInit implements IXposedHookZygoteInit, IXposedHookLoadPackage {
 
 
