@@ -3,6 +3,7 @@ package com.surcumference.fingerprint.plugin.xposed;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.Application;
+import android.app.Instrumentation;
 import android.os.Bundle;
 
 import androidx.annotation.Keep;
@@ -40,10 +41,11 @@ public class TaobaoPlugin {
             Umeng.init(application);
             UpdateFactory.lazyUpdateWhenActivityAlive();
             IAppPlugin plugin = PluginFactory.loadPlugin(application, Constant.PACKAGE_NAME_TAOBAO);
-            XposedHelpers.findAndHookMethod(Activity.class, "onResume", new XC_MethodHook() {
+            XposedHelpers.findAndHookMethod(Instrumentation.class, "callActivityOnResume", Activity.class, new XC_MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                    plugin.onActivityResumed((Activity) param.thisObject);
+                    Activity activity = (Activity) param.args[0];
+                    plugin.onActivityResumed(activity);
                 }
             });
             XposedHelpers.findAndHookMethod(Activity.class, "onCreate", Bundle.class, new XC_MethodHook() {
