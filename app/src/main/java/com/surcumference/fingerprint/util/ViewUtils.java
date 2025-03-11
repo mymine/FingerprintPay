@@ -140,7 +140,9 @@ public class ViewUtils {
                 continue;
             }
             List<View> viewList = new ArrayList<>();
-            getChildViews((ViewGroup) rootView, id, viewList);
+            if (rootView instanceof ViewGroup) {
+                getChildViews((ViewGroup) rootView, id, viewList);
+            }
             sortViewListByYPosition(viewList);
             int outViewListSize = viewList.size();
             if (outViewListSize == 1) {
@@ -161,7 +163,9 @@ public class ViewUtils {
     public static View findViewByText(View rootView, String... names) {
         for (String name : names) {
             List<View> viewList = new ArrayList<>();
-            getChildViews((ViewGroup) rootView, name, viewList);
+            if (rootView instanceof ViewGroup) {
+                getChildViews((ViewGroup) rootView, name, viewList);
+            }
             int outViewListSize = viewList.size();
             if (outViewListSize == 1) {
                 return viewList.get(0);
