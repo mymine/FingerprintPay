@@ -602,14 +602,19 @@ public class ViewUtils {
     }
 
     public static void setDimAmount(AlertDialog dialog, float value) {
-        if (dialog == null) {
-            return;
+        try {
+            if (dialog == null) {
+                return;
+            }
+            Window window = dialog.getWindow();
+            if (window == null) {
+                return;
+            }
+            window.setDimAmount(value);
+        }  catch (Exception e) {
+            // java.lang.IllegalArgumentException: View=DecorView@2d8132f[PayPwdDialogActivity] not attached to window manager
+            L.e(e);
         }
-        Window window = dialog.getWindow();
-        if (window == null) {
-            return;
-        }
-        window.setDimAmount(value);
     }
 
     public static View.OnClickListener getOnClickListener(View v) {
