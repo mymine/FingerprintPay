@@ -13,8 +13,8 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled false
-            shrinkResources false
+            minifyEnabled System.getenv("BUILD_RELEASE_MINIFYENABLED")?.toBoolean() ?: false
+            shrinkResources System.getenv("BUILD_RELEASE_MINIFYENABLED")?.toBoolean() ?: false
             zipAlignEnabled true
             proguardFiles 'proguard-rules.pro'
         }
