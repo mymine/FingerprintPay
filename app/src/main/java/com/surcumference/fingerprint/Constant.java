@@ -53,7 +53,6 @@ public class Constant {
     }
 
     public static class QQ {
-        public static final int QQ_VERSION_CODE_7_3_0 = 750;
         public static final int QQ_VERSION_CODE_8_2_11 = 1380;
         public static final int QQ_VERSION_CODE_8_8_83 = 2654;
     }

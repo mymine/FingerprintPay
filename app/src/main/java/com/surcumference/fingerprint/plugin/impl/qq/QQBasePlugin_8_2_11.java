@@ -55,7 +55,6 @@ public class QQBasePlugin_8_2_11 implements IAppPlugin, IMockCurrentUser {
     private static final String TAG_ACTIVITY_PAY = "TAG_ACTIVITY_PAY";
     private static final String TAG_ACTIVITY_FIRST_RESUME = "TAG_ACTIVITY_FIRST_RESUME";
 
-    protected static final int QQ_VERSION_CODE_7_3_0 = 750;
     protected static final int QQ_VERSION_CODE_8_8_83 = 2654;
 
     private XBiometricIdentify mFingerprintIdentify;
@@ -227,12 +226,8 @@ public class QQBasePlugin_8_2_11 implements IAppPlugin, IMockCurrentUser {
                 fingerprintView.setVisibility(View.GONE);
             }
             if (payDialog.titleTextView != null) {
-                if (versionCode >= QQ_VERSION_CODE_7_3_0) {
-                    payDialog.titleTextView.setClickable(true);
-                    payDialog.titleTextView.setText("找回密码");
-                } else {
-                    payDialog.titleTextView.setText(Lang.getString(R.id.qq_payview_password_title));
-                }
+                payDialog.titleTextView.setClickable(true);
+                payDialog.titleTextView.setText("找回密码");
             }
             if (payDialog.usePasswordText != null) {
                 payDialog.usePasswordText.setText(Lang.getString(R.id.qq_payview_fingerprint_switch_text));
@@ -275,9 +270,7 @@ public class QQBasePlugin_8_2_11 implements IAppPlugin, IMockCurrentUser {
             }
             if (payDialog.titleTextView != null) {
                 payDialog.titleTextView.setText(Lang.getString(R.id.qq_payview_fingerprint_title));
-                if (versionCode >= QQ_VERSION_CODE_7_3_0) {
-                    payDialog.titleTextView.setClickable(false);
-                }
+                payDialog.titleTextView.setClickable(false);
             }
             if (payDialog.usePasswordText != null) {
                 payDialog.usePasswordText.setText(Lang.getString(R.id.qq_payview_password_switch_text));
@@ -379,10 +372,8 @@ public class QQBasePlugin_8_2_11 implements IAppPlugin, IMockCurrentUser {
         textView.setTextSize(16);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         params.gravity = Gravity.CENTER;
-        if (getVersionCode(context) >= QQ_VERSION_CODE_7_3_0) {
-            //QQ居然拿键盘底部来定位... To TP工程师. 你们的Activity太重了
-            params.bottomMargin = DpUtils.dip2px(context, 30);
-        }
+        //QQ居然拿键盘底部来定位... To TP工程师. 你们的Activity太重了
+        params.bottomMargin = DpUtils.dip2px(context, 30);
         textView.setLayoutParams(params);
         return textView;
     }

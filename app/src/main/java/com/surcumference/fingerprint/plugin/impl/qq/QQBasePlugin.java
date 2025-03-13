@@ -241,12 +241,8 @@ public class QQBasePlugin implements IAppPlugin, IMockCurrentUser {
                 fingerprintView.setVisibility(View.GONE);
             }
             if (payDialog.titleTextView != null) {
-                if (versionCode >= Constant.QQ.QQ_VERSION_CODE_7_3_0) {
-                    payDialog.titleTextView.setClickable(true);
-                    payDialog.titleTextView.setText("找回密码");
-                } else {
-                    payDialog.titleTextView.setText(Lang.getString(R.id.qq_payview_password_title));
-                }
+                payDialog.titleTextView.setClickable(true);
+                payDialog.titleTextView.setText("找回密码");
             }
             if (payDialog.usePasswordText != null) {
                 payDialog.usePasswordText.setText(Lang.getString(R.id.qq_payview_fingerprint_switch_text));
@@ -289,9 +285,7 @@ public class QQBasePlugin implements IAppPlugin, IMockCurrentUser {
             }
             if (payDialog.titleTextView != null) {
                 payDialog.titleTextView.setText(Lang.getString(R.id.qq_payview_fingerprint_title));
-                if (versionCode >= Constant.QQ.QQ_VERSION_CODE_7_3_0) {
-                    payDialog.titleTextView.setClickable(false);
-                }
+                payDialog.titleTextView.setClickable(false);
             }
             if (payDialog.usePasswordText != null) {
                 payDialog.usePasswordText.setText(Lang.getString(R.id.qq_payview_password_switch_text));
