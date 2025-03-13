@@ -341,6 +341,9 @@ public class TaobaoBasePlugin implements IAppPlugin {
                 @Override
                 public void onClick(View v) {
                     try {
+                        if (mFingerprintIdentifyTemporaryBlocking) {
+                            return;
+                        }
                         AlertDialog dialog = mFingerPrintAlertDialog;
                         if (dialog == null) {
                             return;
