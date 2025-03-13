@@ -26,14 +26,17 @@ extract "$ZIPFILE" 'uninstall.sh' "$MODPATH"
 ui_print "- Zygisk Enabled"
 rm -rf "$MODPATH/riru" || true
 mkdir -p "$MODPATH/zygisk"
-extract "$ZIPFILE" "lib/armeabi-v7a/lib$ZYGISK_MODULE_LIB_NAME.so" "$MODPATH/zygisk" true
-mv -f "$MODPATH/zygisk/lib$ZYGISK_MODULE_LIB_NAME.so" "$MODPATH/zygisk/armeabi-v7a.so"
-extract "$ZIPFILE" "lib/arm64-v8a/lib$ZYGISK_MODULE_LIB_NAME.so" "$MODPATH/zygisk" true
-mv -f "$MODPATH/zygisk/lib$ZYGISK_MODULE_LIB_NAME.so" "$MODPATH/zygisk/arm64-v8a.so"
-extract "$ZIPFILE" "lib/x86/lib$ZYGISK_MODULE_LIB_NAME.so" "$MODPATH/zygisk" true
-mv -f "$MODPATH/zygisk/lib$ZYGISK_MODULE_LIB_NAME.so" "$MODPATH/zygisk/x86.so"
-extract "$ZIPFILE" "lib/x86_64/lib$ZYGISK_MODULE_LIB_NAME.so" "$MODPATH/zygisk" true
-mv -f "$MODPATH/zygisk/lib$ZYGISK_MODULE_LIB_NAME.so" "$MODPATH/zygisk/x86_64.so"
+if [ "$ARCH" = "x86" ] || [ "$ARCH" = "x64" ]; then
+  extract "$ZIPFILE" "lib/x86/lib$ZYGISK_MODULE_LIB_NAME.so" "$MODPATH/zygisk" true
+  mv -f "$MODPATH/zygisk/lib$ZYGISK_MODULE_LIB_NAME.so" "$MODPATH/zygisk/x86.so"
+  extract "$ZIPFILE" "lib/x86_64/lib$ZYGISK_MODULE_LIB_NAME.so" "$MODPATH/zygisk" true
+  mv -f "$MODPATH/zygisk/lib$ZYGISK_MODULE_LIB_NAME.so" "$MODPATH/zygisk/x86_64.so"
+else
+  extract "$ZIPFILE" "lib/armeabi-v7a/lib$ZYGISK_MODULE_LIB_NAME.so" "$MODPATH/zygisk" true
+  mv -f "$MODPATH/zygisk/lib$ZYGISK_MODULE_LIB_NAME.so" "$MODPATH/zygisk/armeabi-v7a.so"
+  extract "$ZIPFILE" "lib/arm64-v8a/lib$ZYGISK_MODULE_LIB_NAME.so" "$MODPATH/zygisk" true
+  mv -f "$MODPATH/zygisk/lib$ZYGISK_MODULE_LIB_NAME.so" "$MODPATH/zygisk/arm64-v8a.so"
+fi
 ui_print "- Extracting extra libraries"
 set_perm_recursive "$MODPATH" 0 0 0755 0644
 extract "$ZIPFILE" 'post-fs-data.sh' "$MODPATH"
