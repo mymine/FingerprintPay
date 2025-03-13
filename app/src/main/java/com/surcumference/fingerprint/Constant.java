@@ -25,7 +25,10 @@ public class Constant {
     public static final String HELP_URL_FAQ = "https://gitee.com/eritpchy/FingerprintPay/blob/main/README.md#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98";
     public static final String HELP_URL_LICENSE = "https://gitee.com/eritpchy/FingerprintPay/blob/main/license.md";
     public static final String PROJECT_URL = "https://github.com/eritpchy/FingerprintPay";
-    public static final String UPDATE_URL_GITHUB = "https://api.github.com/repos/eritpchy/FingerprintPay/releases/latest";
+    public static final String[] UPDATE_URLS = new String[] {
+        "https://api.github.com/repos/eritpchy/FingerprintPay/releases/latest",
+        "https://accelerate.xdow.net/api/repos/eritpchy/FingerprintPay/releases/latest",
+    };
     //url/version/name
     public static final String UPDATE_URL_MIRROR_FILE = "https://file.xdow.net/d/download/fingerprintpay/%s/%s";
     public static final String DONATE_ID_ALIPAY = "https://qr.alipay.com/FKX012222QIU52C6LATAB7";

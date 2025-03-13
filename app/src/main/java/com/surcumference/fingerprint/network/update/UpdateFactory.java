@@ -66,7 +66,7 @@ public class UpdateFactory {
             }});
             File targetFile = FileUtils.getSharableFile(context, fileName);
             FileUtils.delete(targetFile);
-            new GithubUpdateChecker(BuildConfig.VERSION_NAME, Constant.UPDATE_URL_GITHUB,
+            new GithubUpdateChecker(BuildConfig.VERSION_NAME, Constant.UPDATE_URLS,
                     new UpdateResultListener() {
                 @Override
                 public void onNoUpdate() {
