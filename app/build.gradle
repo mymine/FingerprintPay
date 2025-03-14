@@ -5,7 +5,8 @@ android {
     compileSdk 34
     defaultConfig {
         applicationId "com.surcumference.fingerprintpay"
-        minSdkVersion 14
+        minSdk 14
+        targetSdk 34
         versionCode 34
         versionName "6.0.0"
         buildConfigField "String", "APP_PRODUCT_NAME", "\"FingerprintPay\""
