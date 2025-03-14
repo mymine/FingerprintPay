@@ -248,6 +248,8 @@ public class Lang {
                 return tr("请开始你的表演, 日志已开始记录\n日志路径: %s", "請開始你的表演, 日誌已開始記錄\n日誌路徑: %s", "Star logging\nlog path: %s");
             case R.id.toast_stop_logging:
                 return tr("表演结束, 请将日志文件分享给开发者\n日志路径: %s", "表演结束, 请将日志文件分享给开发者\n日誌路徑: %s", "Stop logging\nlog path: %s");
+            case R.id.toast_update_available:
+                return tr("请前往Magisk框架更新模块, 或进入Github(🪜)官网下载模块刷入", "請前往Magisk框架更新模組，或進入Github(🪜)官网下载模組刷入", "Please go to the Magisk framework to update the module, or visit the Github website to download and flash the module.");
             case R.id.template:
                 return tr("", "", "");
         }

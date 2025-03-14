@@ -24,24 +24,17 @@ import com.surcumference.fingerprint.util.ApplicationUtils;
 import com.surcumference.fingerprint.util.Config;
 import com.surcumference.fingerprint.util.FileUtils;
 import com.surcumference.fingerprint.util.Task;
-import com.surcumference.fingerprint.util.ZipUtils;
 import com.surcumference.fingerprint.util.log.L;
 import com.surcumference.fingerprint.view.DownloadView;
-import com.surcumference.fingerprint.view.MagiskInstPluginTargetSelectionView;
 import com.surcumference.fingerprint.view.MessageView;
-import com.surcumference.fingerprint.view.ShellExecuteView;
 import com.surcumference.fingerprint.view.UpdateInfoView;
 
-import net.lingala.zip4j.exception.ZipException;
 
 import java.io.File;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Callable;
-
-import eu.chainfire.libsuperuser.Shell;
 
 /**
  * Created by Jason on 2017/9/10.
@@ -124,86 +117,9 @@ public class UpdateFactory {
     }
 
     private static void handleMagiskUpdate(Context context, UpdateInfo updateInfo, DialogInterface updateInfoViewDialogInterface) {
-        Task.onBackground(() -> {
-            if (!Shell.SU.available()) {
-                if (!Shell.SU.available()) {
-                    Task.onMain(() -> new MessageView(context).text(Lang.getString(R.id.update_no_root)).showInDialog());
-                    return;
-                }
-            }
-            Task.onMain(() -> {
-                MagiskInstPluginTargetSelectionView instPluginTargetSelectionView = new MagiskInstPluginTargetSelectionView(context);
-                instPluginTargetSelectionView.showInDialog();
-                instPluginTargetSelectionView.withOnPositiveButtonClickListener((dialog, which) -> {
-                    Map<PluginTarget, Boolean> instPluginTargetSelectionMap = instPluginTargetSelectionView.getSelection();
-                    L.d("instPluginTargetSelectionMap", instPluginTargetSelectionMap);
-                    if (!instPluginTargetSelectionMap.values().contains(true)) {
-                        Toaster.showShort(Lang.getString(R.id.update_at_least_select_one));
-                        return;
-                    }
-                    dialog.dismiss();
-                    String fileName = context.getPackageName() + ".zip";
-                    File cacheDir = context.getCacheDir();
-                    File targetFile = new File(cacheDir, fileName);
-                    File unzipDir = new File(cacheDir, BuildConfig.APPLICATION_ID);
-                    Runnable cleanTask = () -> {
-                        FileUtils.delete(targetFile);
-                        FileUtils.delete(unzipDir);
-                    };
-                    cleanTask.run();
-                    String mirrorUrl = String.format(Locale.getDefault(), Constant.UPDATE_URL_MIRROR_FILE, updateInfo.version, updateInfo.name);
-                    new DownloadView(context)
-                            .download(new String[]{mirrorUrl, updateInfo.url}, targetFile, updateInfo.size, () -> {
-                                    updateInfoViewDialogInterface.dismiss();
-                                    ShellExecuteView shellExecuteView = new ShellExecuteView(context);
-                                    shellExecuteView.showInDialog();
-                                    Task.onBackground(() -> {
-                                        try {
-                                            unzipDir.mkdirs();
-                                            try {
-                                                ZipUtils.unzip(targetFile, unzipDir.getAbsolutePath(), "");
-                                            } catch (ZipException e) {
-                                                L.e(e);
-                                                Task.onMain(() -> new MessageView(context).text(Lang.getString(R.id.update_file_corrupted)).showInDialog());
-                                                return;
-                                            }
-
-                                            File[] moduleZipFiles = unzipDir.listFiles();
-                                            Map<PluginTarget, File> moduleFilePluginTargetMap = matchMagiskModuleFileListToPluginTarget(moduleZipFiles);
-                                            L.d("moduleFilePluginTargetMap", moduleFilePluginTargetMap);
-                                            if (moduleFilePluginTargetMap.size() <= 0) {
-                                                Task.onMain(() -> new MessageView(context).text(Lang.getString(R.id.update_file_missing)).showInDialog());
-                                                return;
-                                            }
-                                            Iterator<Map.Entry<PluginTarget, Boolean>> it = instPluginTargetSelectionMap.entrySet().iterator();
-                                            while (it.hasNext()) {
-                                                Map.Entry<PluginTarget, Boolean> entry = it.next();
-                                                PluginTarget pluginTarget = entry.getKey();
-                                                boolean selected = (boolean)entry.getValue();
-                                                if (!selected) {
-                                                    continue;
-                                                }
-                                                File moduleFile = moduleFilePluginTargetMap.get(pluginTarget);
-                                                if (moduleFile == null) {
-                                                    continue;
-                                                }
-                                                String command = String.format("magisk --install-module \"%s\"", moduleFile.getAbsolutePath());
-                                                int installModuleResult = shellExecuteView.executeCommand(command);
-                                                if (installModuleResult != 0) {
-                                                    Task.onMain(()-> shellExecuteView.appendCommandLineOutput(Lang.getString(R.id.update_installation_failed) + installModuleResult + "\n请尝试前往更新页面手动获取更新"));
-                                                    return;
-                                                }
-                                            }
-                                            Task.onMain(()-> shellExecuteView.appendCommandLineOutput(Lang.getString(R.id.update_success_note)));
-                                        } finally {
-                                            cleanTask.run();
-                                        }
-                                    });
-                            }).showInDialog();
-
-                });
-            });
-        });
+        com.surcumference.fingerprint.util.UrlUtils.openUrl(context, updateInfo.pageUrl);
+        Task.onMain(1000, () -> Toaster.showLong(Lang.getString(R.id.toast_update_available)));
+        updateInfoViewDialogInterface.dismiss();
     }
 
     private static Map<PluginTarget, File> matchMagiskModuleFileListToPluginTarget(@Nullable File[] moduleZipFiles) {

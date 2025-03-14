@@ -112,6 +112,7 @@
     <item name="toast_need_qq_7_2_5" type="id"/>
     <item name="toast_start_logging" type="id"/>
     <item name="toast_stop_logging" type="id"/>
+    <item name="toast_update_available" type="id"/>
 
     <item name="tag_password_layout_listener" type="id"/>
 </resources>
