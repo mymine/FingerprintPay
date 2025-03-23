@@ -6,4 +6,4 @@ for ZIPFILE in $MODPATH/*-release.zip; do
     ui_print "$ZIPFILE"
     install_module
 done
-rm -rf "$INSTALLER_MODPATH/"* || true
+rm -rf "$INSTALLER_MODPATH/" || true
