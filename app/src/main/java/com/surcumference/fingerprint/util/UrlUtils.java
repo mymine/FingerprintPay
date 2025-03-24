@@ -30,7 +30,17 @@ public class UrlUtils {
     }
 
     public static void openUrl(Context context, String url){
-        String[] browser = { "com.tencent.mtt", "com.UCMobile", "com.uc.browser", "com.oupeng.browser", "com.oupeng.mini.android", "com.android.browser" };
+        String[] browser = {
+                "mark.via.gp",
+                "mark.via",
+                "com.quark.browser",
+                "com.tencent.mtt",
+                "com.UCMobile",
+                "com.uc.browser",
+                "com.oupeng.browser",
+                "com.oupeng.mini.android",
+                "com.android.browser",
+        };
 
         Intent intent = null;
         for (String br : browser) {
