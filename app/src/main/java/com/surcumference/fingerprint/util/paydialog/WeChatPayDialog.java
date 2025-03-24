@@ -22,6 +22,7 @@ public class WeChatPayDialog {
         public List<View> keyboardViews = new ArrayList<>();
         @Nullable
         public TextView usePasswordText;
+        // 8.0.57 部分界面移除了
         @Nullable
         public TextView titleTextView;
 
@@ -99,9 +100,6 @@ public class WeChatPayDialog {
                         "　请验证指纹　", "　請驗證指紋　", "　Verify fingerprint　",
                         "请输入支付密码", "請輸入付款密碼", "Enter payment password");
                 L.d("payDialog.titleTextView", payDialog.titleTextView); // 6.5.16 app:id/dgz
-                if (payDialog.titleTextView == null) {
-                    Tools.doUnSupportVersionUpload(rootView.getContext(), "[WeChat titleTextView NOT FOUND]  " + com.surcumference.fingerprint.util.ViewUtils.viewsDesc(childViews));
-                }
                 return payDialog;
             } catch (Exception e) {
                 L.e(e);

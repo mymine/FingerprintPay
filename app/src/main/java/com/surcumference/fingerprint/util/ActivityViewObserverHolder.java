@@ -10,6 +10,7 @@ public class ActivityViewObserverHolder {
         AlipayPasswordView,
         TaobaoPasswordView,
         WeChatPayView,
+        WeChatPaymentMethodView,
         UnionPayPasswordView,
     }
 

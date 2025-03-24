@@ -12,8 +12,6 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.*;
-import android.view.accessibility.AccessibilityEvent;
-import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.*;
 
 import androidx.annotation.NonNull;
@@ -150,7 +148,7 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
                     ActivityViewObserver.IActivityViewListener l = this;
                     ActivityViewObserverHolder.stop(observer);
                     L.d("onViewFounded:", view, " rootView: ", view.getRootView());
-                    view.postDelayed(() -> onPayDialogShown(activity, (ViewGroup) view.getRootView()), 100);
+                    view.post(() -> onPayDialogShown(activity, (ViewGroup) view.getRootView()));
 
                     View.OnAttachStateChangeListener listener = mView2OnAttachStateChangeListenerMap.get(view);
                     if (listener != null) {
@@ -194,6 +192,7 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
             if (activityClzName.contains(".WalletPayUI")
                 || activityClzName.contains(".UIPageFragmentActivity")) {
                 ActivityViewObserverHolder.stop(ActivityViewObserverHolder.Key.WeChatPayView);
+                ActivityViewObserverHolder.stop(ActivityViewObserverHolder.Key.WeChatPaymentMethodView);
                 onPayDialogDismiss(activity);
             } else if (getVersionCode(activity) >= Constant.WeChat.WECHAT_VERSION_CODE_8_0_20 && activityClzName.contains("com.tencent.mm.ui.LauncherUI")) {
                 stopFragmentObserver(activity);
@@ -430,39 +429,34 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
                 return false;
             });
         }
+        watchForSwitchPaymentMethod(activity, rootView, switchToPasswordRunnable, switchToFingerprintRunnable);
+    }
 
+    private void watchForSwitchPaymentMethod(Activity activity, ViewGroup rootView, Runnable switchToPasswordRunnable, Runnable switchToFingerprintRunnable) {
+        L.d("watchForSwitchPaymentMethod", activity, ViewUtils.getViewInfo(rootView));
+        ActivityViewObserver activityViewObserver = new ActivityViewObserver(activity);
+        activityViewObserver.setViewIdentifyText("选择付款方式", "選擇付款方式", "Select payment method");
+        ActivityViewObserverHolder.start(ActivityViewObserverHolder.Key.WeChatPaymentMethodView, activityViewObserver, 333, (ActivityViewObserver observer, View view) -> {
+            L.d("选择付款方式 founded", ViewUtils.getViewInfo(view));
+            switchToPasswordRunnable.run();
+            observer.stop();
+            view.addOnAttachStateChangeListener(
+                    new View.OnAttachStateChangeListener() {
+                        @Override
+                        public void onViewAttachedToWindow(@NonNull View view) {
+                            L.d("onViewAttachedToWindow", ViewUtils.getViewInfo(view));
+                        }
 
-        // 防止从选择支付页面返回时标题出错
-        ViewTreeObserver.OnGlobalLayoutListener layoutListener = (ViewTreeObserver.OnGlobalLayoutListener) passwordLayout.getTag(R.id.tag_password_layout_listener);
-        if (layoutListener != null) {
-            passwordLayout.getViewTreeObserver().removeOnGlobalLayoutListener(layoutListener);
-        }
-        layoutListener = () -> {
-            AccessibilityNodeInfo nodeInfo = AccessibilityNodeInfo.obtain();
-            passwordLayout.onInitializeAccessibilityNodeInfo(nodeInfo);
-            if (nodeInfo.isVisibleToUser()) {
-                if (fingerPrintLayout.getVisibility() != View.VISIBLE) {
-                    fingerPrintLayout.setVisibility(View.VISIBLE);
-                    switchToFingerprintRunnable.run();
-                    // 防止从选择支付页面返回时标题出错
-                    if (titleTextView != null) {
-                        if (mInputEditText.getVisibility() == View.VISIBLE) {
-                            titleTextView.setText(Lang.getString(R.id.wechat_payview_password_title));
-                        } else {
-                            titleTextView.setText(Lang.getString(R.id.wechat_payview_fingerprint_title));
+                        @Override
+                        public void onViewDetachedFromWindow(@NonNull View view) {
+                            L.d("onViewDetachedFromWindow", ViewUtils.getViewInfo(view));
+                            view.removeOnAttachStateChangeListener(this);
+                            switchToFingerprintRunnable.run();
+                            rootView.post(() -> watchForSwitchPaymentMethod(activity, rootView, switchToPasswordRunnable, switchToFingerprintRunnable));
                         }
                     }
-                }
-            } else {
-                if (fingerPrintLayout.getVisibility() != View.GONE) {
-                    fingerPrintLayout.setVisibility(View.GONE);
-                    cancelFingerprintIdentify();
-                }
-            }
-            nodeInfo.recycle();
-        };
-        passwordLayout.setTag(R.id.tag_password_layout_listener, layoutListener);
-        passwordLayout.getViewTreeObserver().addOnGlobalLayoutListener(layoutListener);
+            );
+        });
     }
 
     private void inputDigitalPassword(Context context, EditText inputEditText, String pwd,
