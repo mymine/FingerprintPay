@@ -21,7 +21,8 @@
 5. 自动替代用户输入"支付密码", 完成支付操作
 
 ## 国内镜像
-- [点这里](https://file.xdow.net/fingerprintpay/)
+- [夸克网盘](https://pan.quark.cn/s/dae9bc84d64f)
+- [镜像网盘](https://file.xdow.net/fingerprintpay/)
 - [加群下载](#提示)
 
 ## 使用步骤 Magisk + Zygisk
