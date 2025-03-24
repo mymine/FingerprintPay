@@ -5,7 +5,11 @@ import android.content.pm.PackageInfo;
 import android.os.Bundle;
 import android.os.UserManager;
 
+import com.surcumference.fingerprint.BuildConfig;
+import com.surcumference.fingerprint.Lang;
+import com.surcumference.fingerprint.R;
 import com.surcumference.fingerprint.util.log.L;
+import com.surcumference.fingerprint.view.MessageView;
 
 import java.lang.reflect.Method;
 
@@ -20,6 +24,8 @@ public class Tools {
             PackageInfo packageInfo = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
             int versionCode = packageInfo.versionCode;
             String versionName = packageInfo.versionName;
+
+            new MessageView(context).text(String.format(Lang.getString(R.id.message_version_not_supported), versionName, versionCode, BuildConfig.VERSION_NAME)).showInDialog();
 
             StringBuffer stringBuffer = new StringBuffer();
             stringBuffer.append("UnSupport: versionName:").append(versionName)

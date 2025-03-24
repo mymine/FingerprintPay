@@ -113,6 +113,7 @@
     <item name="toast_start_logging" type="id"/>
     <item name="toast_stop_logging" type="id"/>
     <item name="toast_update_available" type="id"/>
+    <item name="message_version_not_supported" type="id"/>
 
     <item name="tag_password_layout_listener" type="id"/>
 </resources>

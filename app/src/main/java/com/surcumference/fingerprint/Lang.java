@@ -250,6 +250,8 @@ public class Lang {
                 return tr("表演结束, 请将日志文件分享给开发者\n日志路径: %s", "表演结束, 请将日志文件分享给开发者\n日誌路徑: %s", "Stop logging\nlog path: %s");
             case R.id.toast_update_available:
                 return tr("请前往Magisk框架更新模块, 或进入Github(🪜)官网下载模块刷入", "請前往Magisk框架更新模組，或進入Github(🪜)官网下载模組刷入", "Please go to the Magisk framework to update the module, or visit the Github website to download and flash the module.");
+            case R.id.message_version_not_supported:
+                return tr("当前应用版本%s(%s)与模块版本%s不兼容，请反馈问题\uD83D\uDC1B并使用兼容的模块版本", "當前應用版本%s(%s)與模塊版本%s不兼容，請反饋問題\uD83D\uDC1B並使用兼容的模塊版本", "The current application version %s(%s) is incompatible with module version %s. Please report this issue \uD83D\uDC1B and use a compatible module version.");
             case R.id.template:
                 return tr("", "", "");
         }
