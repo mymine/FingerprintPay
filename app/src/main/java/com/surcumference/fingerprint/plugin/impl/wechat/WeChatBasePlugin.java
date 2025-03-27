@@ -148,7 +148,8 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
                     ActivityViewObserver.IActivityViewListener l = this;
                     ActivityViewObserverHolder.stop(observer);
                     L.d("onViewFounded:", view, " rootView: ", view.getRootView());
-                    view.post(() -> onPayDialogShown(activity, (ViewGroup) view.getRootView()));
+                    ViewGroup rootView = (ViewGroup) view.getRootView();
+                    view.post(() -> onPayDialogShown(activity, rootView));
 
                     View.OnAttachStateChangeListener listener = mView2OnAttachStateChangeListenerMap.get(view);
                     if (listener != null) {
@@ -165,7 +166,7 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
                         public void onViewDetachedFromWindow(View v) {
                             L.d("onViewDetachedFromWindow:", view);
                             Context context = v.getContext();
-                            onPayDialogDismiss(context);
+                            onPayDialogDismiss(context, rootView);
                             if (Config.from(context).isVolumeDownMonitorEnabled()) {
                                 ViewUtils.unregisterVolumeKeyDownEventListener(activity.getWindow());
                             }
@@ -193,7 +194,7 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
                 || activityClzName.contains(".UIPageFragmentActivity")) {
                 ActivityViewObserverHolder.stop(ActivityViewObserverHolder.Key.WeChatPayView);
                 ActivityViewObserverHolder.stop(ActivityViewObserverHolder.Key.WeChatPaymentMethodView);
-                onPayDialogDismiss(activity);
+                onPayDialogDismiss(activity, activity.getWindow().getDecorView());
             } else if (getVersionCode(activity) >= Constant.WeChat.WECHAT_VERSION_CODE_8_0_20 && activityClzName.contains("com.tencent.mm.ui.LauncherUI")) {
                 stopFragmentObserver(activity);
             }
@@ -513,12 +514,17 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
         return location[0] > 0 || floatRootView.getChildCount() > 1;
     }
 
-    protected void onPayDialogDismiss(Context context) {
+    protected void onPayDialogDismiss(Context context, View rootView) {
         L.d("PayDialog dismiss");
-        if (Config.from(context).isOn()) {
-            cancelFingerprintIdentify();
-            mMockCurrentUser = false;
+        if (!Config.from(context).isOn()) {
+            return;
         }
+        cancelFingerprintIdentify();
+        View fingerPrintLayoutLast = rootView.findViewWithTag("fingerPrintLayout");
+        if (fingerPrintLayoutLast != null) {
+            ViewUtils.removeFromSuperView(fingerPrintLayoutLast);
+        }
+        mMockCurrentUser = false;
     }
 
     private void cancelFingerprintIdentify() {
