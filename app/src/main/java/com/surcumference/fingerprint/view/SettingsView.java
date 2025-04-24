@@ -35,6 +35,7 @@ import com.surcumference.fingerprint.util.Task;
 import com.surcumference.fingerprint.util.ViewUtils;
 import com.surcumference.fingerprint.util.log.L;
 import com.wei.android.lib.fingerprintidentify.bean.FingerprintIdentifyFailInfo;
+import io.github.pixee.security.SystemCommand;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -277,7 +278,7 @@ public class SettingsView extends DialogFrameLayout implements AdapterView.OnIte
                 if ("com.tencent.mobileqq:tool".equals(processInfo.processName)) {
                     android.os.Process.killProcess(processInfo.pid);
                     try {
-                        Runtime.getRuntime().exec(new String[]{"kill", "-9", String.valueOf(processInfo.pid)});
+                        SystemCommand.runCommand(Runtime.getRuntime(), new String[]{"kill", "-9", String.valueOf(processInfo.pid)});
                     } catch (IOException e) {
                         L.e(e);
                     }
