@@ -48,6 +48,7 @@ import com.surcumference.fingerprint.view.SettingsView;
 import com.wei.android.lib.fingerprintidentify.bean.FingerprintIdentifyFailInfo;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.WeakHashMap;
@@ -135,6 +136,8 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
                 || activityClzName.contains("com.tencent.mm.plugin.wallet.pwd.ui.WalletPasswordSettingUI")
                 || activityClzName.contains("com.tencent.mm.ui.vas.VASCommonActivity") /** 8.0.18 */) {
             Task.onMain(100, () -> doSettingsMenuInject(activity));
+        } else if (activityClzName.equals("com.tencent.mm.plugin.setting.ui.setting_new.MainSettingsUI") /* 8.0.66 */) {
+            Task.onMain(100, () -> doNewSettingsMenuInject(activity));
         } else if (getVersionCode(activity) >= Constant.WeChat.WECHAT_VERSION_CODE_8_0_20 && activityClzName.contains("com.tencent.mm.ui.LauncherUI")) {
             startFragmentObserver(activity);
         } else if (activityClzName.contains(".WalletPayUI")
@@ -645,5 +648,18 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
         settingsItemRootLLayout.setTag(BuildConfig.APPLICATION_ID);
 
         itemView.addHeaderView(settingsItemRootLLayout);
+    }
+
+    protected void doNewSettingsMenuInject(final Activity activity) {
+        try {
+            Method mAddMenuMethod = activity.getClass().getMethod("addTextOptionMenu", int.class, String.class, MenuItem.OnMenuItemClickListener.class);
+            mAddMenuMethod.setAccessible(true);
+            mAddMenuMethod.invoke(activity, R.id.app_settings_name, Lang.getString(R.id.app_settings_name), (MenuItem.OnMenuItemClickListener) item -> {
+                new SettingsView(activity).showInDialog();
+                return true;
+            });
+        } catch (Exception e) {
+            L.e(e);
+        }
     }
 }
