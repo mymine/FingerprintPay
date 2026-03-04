@@ -6,9 +6,13 @@ import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.*;
@@ -50,7 +54,9 @@ import com.wei.android.lib.fingerprintidentify.bean.FingerprintIdentifyFailInfo;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Random;
 import java.util.WeakHashMap;
 
 public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
@@ -61,6 +67,17 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
     private FragmentObserver mFragmentObserver;
     private int mWeChatVersionCode = 0;
     private boolean mFingerprintIdentifyTemporaryBlocking = false;
+
+    // WxaLiteAppTransparentLiteUI support (WeChat 8.0.65+)
+    private ViewTreeObserver.OnGlobalLayoutListener mKeyboardLayoutListener;
+    private Activity mLiteAppActivity;
+    private boolean mLiteAppFirstDetection;
+    private boolean mFingerprintCoverShowing = false;
+    private ImageView mFingerprintIconImageView;
+    private ViewGroup mKeyboardPasswordLayout;
+    private ViewGroup mKeyboardContainer;
+    private final HashMap<Integer, Float> mSavedAlphaMap = new HashMap<>();
+    private final HashMap<Integer, Boolean> mSavedClickableMap = new HashMap<>();
 
     @Override
     public int getVersionCode(Context context) {
@@ -140,6 +157,51 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
             Task.onMain(100, () -> doNewSettingsMenuInject(activity));
         } else if (getVersionCode(activity) >= Constant.WeChat.WECHAT_VERSION_CODE_8_0_20 && activityClzName.contains("com.tencent.mm.ui.LauncherUI")) {
             startFragmentObserver(activity);
+        } else if (activityClzName.contains(".WxaLiteAppTransparentLiteUI")) {
+            try {
+                mLiteAppActivity = activity;
+                mLiteAppFirstDetection = true;
+                final ViewGroup decorView = (ViewGroup) activity.getWindow().getDecorView();
+                final boolean[] wasVisible = new boolean[]{false};
+                final Context listenerContext = decorView.getContext();
+                mKeyboardLayoutListener = () -> {
+                    try {
+                        Activity currentActivity = mLiteAppActivity;
+                        if (currentActivity == null || currentActivity != activity) {
+                            return;
+                        }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+                            if (activity.isDestroyed()) {
+                                return;
+                            }
+                        }
+                        final View keyboardKey = ViewUtils.findViewByName(decorView, activity.getPackageName(), "tenpay_keyboard_0");
+                        boolean keyboardVisible = keyboardKey != null && ViewUtils.isShownInScreen(keyboardKey);
+                        if (keyboardVisible && !wasVisible[0]) {
+                            if (mLiteAppFirstDetection) {
+                                L.d("onViewFounded(LiteApp): ", ViewUtils.getViewInfo(keyboardKey), " rootView: ", keyboardKey.getRootView());
+                                mLiteAppFirstDetection = false;
+                            }
+                            keyboardKey.post(() -> onPayDialogShownByKeyboard(activity, decorView, keyboardKey));
+                        } else if (!keyboardVisible && wasVisible[0]) {
+                            removeFingerprintCover(decorView);
+                            restoreKeyboardContainerHeight(mKeyboardContainer);
+                            cancelFingerprintIdentify();
+                            mSavedAlphaMap.clear();
+                            mSavedClickableMap.clear();
+                            if (Config.from(listenerContext).isVolumeDownMonitorEnabled()) {
+                                ViewUtils.unregisterVolumeKeyDownEventListener(activity.getWindow());
+                            }
+                        }
+                        wasVisible[0] = keyboardVisible;
+                    } catch (Exception e) {
+                        L.e(e);
+                    }
+                };
+                decorView.getViewTreeObserver().addOnGlobalLayoutListener(mKeyboardLayoutListener);
+            } catch (Exception e) {
+                L.e(e);
+            }
         } else if (activityClzName.contains(".WalletPayUI")
                 || activityClzName.contains(".UIPageFragmentActivity")) {
             ActivityViewObserver activityViewObserver = new ActivityViewObserver(activity);
@@ -193,14 +255,16 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
         try {
             L.d("Activity onPause =", activity);
             final String activityClzName = activity.getClass().getName();
-            if (activityClzName.contains(".WalletPayUI")
-                || activityClzName.contains(".UIPageFragmentActivity")) {
-                ActivityViewObserverHolder.stop(ActivityViewObserverHolder.Key.WeChatPayView);
-                ActivityViewObserverHolder.stop(ActivityViewObserverHolder.Key.WeChatPaymentMethodView);
-                onPayDialogDismiss(activity, activity.getWindow().getDecorView());
-            } else if (getVersionCode(activity) >= Constant.WeChat.WECHAT_VERSION_CODE_8_0_20 && activityClzName.contains("com.tencent.mm.ui.LauncherUI")) {
-                stopFragmentObserver(activity);
+            if (!activityClzName.contains(".WalletPayUI") && !activityClzName.contains(".UIPageFragmentActivity")) {
+                if (getVersionCode(activity) >= Constant.WeChat.WECHAT_VERSION_CODE_8_0_20 && activityClzName.contains("com.tencent.mm.ui.LauncherUI")) {
+                    stopFragmentObserver(activity);
+                } else if (activityClzName.contains(".WxaLiteAppTransparentLiteUI")) {
+                    onPayDialogDismiss(activity, activity.getWindow().getDecorView(), 3);
+                }
             }
+            ActivityViewObserverHolder.stop(ActivityViewObserverHolder.Key.WeChatPayView);
+            ActivityViewObserverHolder.stop(ActivityViewObserverHolder.Key.WeChatPaymentMethodView);
+            onPayDialogDismiss(activity, activity.getWindow().getDecorView(), 2);
         } catch (Exception e) {
             L.e(e);
         }
@@ -244,6 +308,339 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
         if (fragmentObserver != null) {
             fragmentObserver.stop();
             mFragmentObserver = null;
+        }
+    }
+
+    /**
+     * Matches module m1797: handle pay dialog via keyboard key detection.
+     */
+    protected void onPayDialogShownByKeyboard(Activity activity, ViewGroup rootView, View keyboardKeyView) {
+        Context context = rootView.getContext();
+        Config config = Config.from(context);
+        if (!config.isOn()) {
+            return;
+        }
+        int versionCode = getVersionCode(context);
+        String passwordEncrypted = config.getPasswordEncrypted();
+        if (TextUtils.isEmpty(passwordEncrypted) || TextUtils.isEmpty(config.getPasswordIV())) {
+            NotifyUtils.notifyBiometricIdentify(context, Lang.getString(R.id.toast_password_not_set_wechat));
+            return;
+        }
+
+        // Navigate: key -> row -> keyboardView(passwordLayout) -> container
+        ViewGroup passwordLayout = (keyboardKeyView.getParent() == null || !(keyboardKeyView.getParent().getParent() instanceof ViewGroup))
+                ? null : (ViewGroup) keyboardKeyView.getParent().getParent();
+        ViewGroup keyboardContainer = (passwordLayout == null || passwordLayout.getParent() == null || !(passwordLayout.getParent() instanceof ViewGroup))
+                ? null : (ViewGroup) passwordLayout.getParent();
+
+        mKeyboardPasswordLayout = passwordLayout;
+        mKeyboardContainer = keyboardContainer;
+
+        if (passwordLayout == null || keyboardContainer == null) {
+            ArrayList<View> childViews = new ArrayList<>();
+            ViewUtils.getChildViews(rootView, childViews);
+            L.d("[WeChat keyboardView NOT FOUND]  " + ViewUtils.viewsDesc(childViews));
+            return;
+        }
+
+        // Module checks: container's parent must be a ViewGroup with exactly 1 child
+        if (!(keyboardContainer.getParent() instanceof ViewGroup)
+                || ((ViewGroup) keyboardContainer.getParent()).getChildCount() != 1) {
+            return;
+        }
+
+        // Remove old keyboard cover
+        View oldKbCover = rootView.findViewWithTag("keyboardCoverLayout");
+        if (oldKbCover != null) {
+            ViewUtils.removeFromSuperView(oldKbCover);
+        }
+
+        // Create fingerprint cover layout (full screen overlay)
+        final FrameLayout fingerPrintCoverLayout = new FrameLayout(context);
+        fingerPrintCoverLayout.setTag("fingerPrintCoverLayout");
+        fingerPrintCoverLayout.setLayoutParams(new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        // Create fingerprint icon
+        mFingerprintIconImageView = new ImageView(context);
+        try {
+            final Bitmap bitmap = ImageUtils.base64ToBitmap(Constant.ICON_FINGER_PRINT_WECHAT_BASE64);
+            mFingerprintIconImageView.setImageBitmap(bitmap);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
+                mFingerprintIconImageView.getViewTreeObserver().addOnWindowAttachListener(new ViewTreeObserver.OnWindowAttachListener() {
+                    @Override public void onWindowAttached() {}
+                    @Override
+                    public void onWindowDetached() {
+                        mFingerprintIconImageView.getViewTreeObserver().removeOnWindowAttachListener(this);
+                        try { bitmap.recycle(); } catch (Exception e) {}
+                    }
+                });
+            }
+        } catch (OutOfMemoryError e) {
+            L.d(e);
+        }
+        mFingerprintIconImageView.setVisibility(config.isShowFingerprintIcon() ? View.VISIBLE : View.GONE);
+        FrameLayout.LayoutParams iconParams = new FrameLayout.LayoutParams(
+                DpUtils.dip2px(context, 70), DpUtils.dip2px(context, 70));
+        iconParams.gravity = Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
+        iconParams.bottomMargin = DpUtils.dip2px(context, 170);
+        fingerPrintCoverLayout.addView(mFingerprintIconImageView, iconParams);
+
+        // Create keyboard cover layout
+        final FrameLayout keyboardCoverLayout = createKeyboardCoverLayout(context, passwordLayout);
+
+        // switchToPassword runnable - matches module RunnableC0084 case 3
+        final ViewGroup finalPasswordLayout = passwordLayout;
+        final ViewGroup finalKeyboardContainer = keyboardContainer;
+        final Runnable switchToPasswordRunnable = () -> {
+            removeFingerprintCover(rootView);
+            restoreKeyboardContainerHeight(finalKeyboardContainer);
+            restoreChildViewStates(finalPasswordLayout, true, mSavedAlphaMap, mSavedClickableMap);
+            cancelFingerprintIdentify();
+            mMockCurrentUser = false;
+        };
+
+        // The run() block - matches module's inline Runnable that's called via runnable.run()
+        if (mFingerprintIdentifyTemporaryBlocking) {
+            return;
+        }
+
+        // Remove old fingerprint cover
+        View oldFpCover = rootView.findViewWithTag("fingerPrintCoverLayout");
+        if (oldFpCover != null) {
+            rootView.removeView(oldFpCover);
+        }
+        rootView.addView(keyboardCoverLayout);
+        rootView.addView(fingerPrintCoverLayout);
+        mFingerprintCoverShowing = true;
+
+        // Save and hide all children
+        saveChildViewStates(finalPasswordLayout, mSavedAlphaMap, mSavedClickableMap);
+
+        // Expand container height
+        if (finalKeyboardContainer != null) {
+            try {
+                int origHeight = finalKeyboardContainer.getHeight();
+                finalKeyboardContainer.setTag(R.id.app_settings_name, Integer.valueOf(origHeight));
+                int expandedHeight = origHeight + DpUtils.dip2px(context, 76);
+                ViewGroup.LayoutParams lp = finalKeyboardContainer.getLayoutParams();
+                lp.height = expandedHeight;
+                finalKeyboardContainer.setLayoutParams(lp);
+                finalKeyboardContainer.requestLayout();
+            } catch (Exception e) {
+                L.e(e);
+            }
+        }
+
+        // Request layout after delay
+        Task.onMain(500, rootView::requestLayout);
+
+        // Start fingerprint - matches module m1795 + inline callback
+        initFingerPrintLock(context, config, false, passwordEncrypted, (password) -> {
+            BlackListUtils.applyIfNeeded(context);
+            // Restore clickable only (not alpha) so touch events work
+            restoreChildViewStates(finalPasswordLayout, false, mSavedAlphaMap, mSavedClickableMap);
+            try {
+                inputDigitalPasswordByTouch(context, finalPasswordLayout, password, versionCode);
+            } catch (NullPointerException e) {
+                Toaster.showLong(Lang.getString(R.id.toast_password_auto_enter_fail));
+                L.e("inputDigitPassword NPE", e);
+            } catch (Exception e) {
+                Toaster.showLong(Lang.getString(R.id.toast_password_auto_enter_fail));
+                L.e(e);
+            }
+            switchToPasswordRunnable.run();
+        }, switchToPasswordRunnable);
+
+        // Icon click -> switch to password
+        mFingerprintIconImageView.setOnClickListener(view -> switchToPasswordRunnable.run());
+
+        // Volume key monitoring
+        if (config.isVolumeDownMonitorEnabled()) {
+            ViewUtils.registerVolumeKeyDownEventListener(activity.getWindow(), event -> {
+                if (mFingerprintIdentifyTemporaryBlocking) {
+                    return false;
+                }
+                switchToPasswordRunnable.run();
+                Toaster.showLong(Lang.getString(R.id.toast_fingerprint_temporary_disabled));
+                mFingerprintIdentifyTemporaryBlocking = true;
+                Task.onBackground(60000, () -> mFingerprintIdentifyTemporaryBlocking = false);
+                return false;
+            });
+        }
+    }
+
+    /**
+     * Matches module m1788: create keyboard cover layout.
+     */
+    private static FrameLayout createKeyboardCoverLayout(Context context, ViewGroup keyboardView) {
+        int coverHeight = DpUtils.dip2px(context, 76) + keyboardView.getHeight();
+        FrameLayout coverLayout = new FrameLayout(context);
+        coverLayout.setTag("keyboardCoverLayout");
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, coverHeight);
+        lp.gravity = Gravity.BOTTOM;
+        coverLayout.setLayoutParams(lp);
+        boolean isDarkMode = StyleUtils.isDarkMode(context);
+        int bgColor = isDarkMode ? 0xFF191919 : Color.WHITE;
+        Drawable bg = keyboardView.getBackground();
+        if (bg instanceof ColorDrawable) {
+            bgColor = ((ColorDrawable) bg).getColor();
+        }
+        coverLayout.setBackgroundColor(bgColor);
+        return coverLayout;
+    }
+
+    /**
+     * Matches module m1798: remove fingerprint cover.
+     */
+    private void removeFingerprintCover(View rootView) {
+        if (rootView == null) {
+            return;
+        }
+        mFingerprintCoverShowing = false;
+        View fpCover = rootView.findViewWithTag("fingerPrintCoverLayout");
+        if (fpCover != null) {
+            ViewUtils.removeFromSuperView(fpCover);
+        }
+    }
+
+    /**
+     * Matches module m1790: restore keyboard container height.
+     */
+    private static void restoreKeyboardContainerHeight(ViewGroup keyboardContainer) {
+        if (keyboardContainer == null) {
+            return;
+        }
+        try {
+            Object tag = keyboardContainer.getTag(R.id.app_settings_name);
+            if (tag instanceof Integer) {
+                ViewGroup.LayoutParams lp = keyboardContainer.getLayoutParams();
+                lp.height = ((Integer) tag).intValue();
+                keyboardContainer.setLayoutParams(lp);
+                keyboardContainer.requestLayout();
+            }
+        } catch (Exception e) {
+            L.e(e);
+        }
+    }
+
+    /**
+     * Matches module m1792: save child view states and hide.
+     */
+    private static void saveChildViewStates(ViewGroup viewGroup, HashMap<Integer, Float> alphaMap, HashMap<Integer, Boolean> clickableMap) {
+        if (viewGroup == null) {
+            return;
+        }
+        for (int i = 0; i < viewGroup.getChildCount(); i++) {
+            View child = viewGroup.getChildAt(i);
+            if (child != null) {
+                int key = System.identityHashCode(child);
+                if (!alphaMap.containsKey(key)) {
+                    alphaMap.put(key, child.getAlpha());
+                }
+                if (!clickableMap.containsKey(key)) {
+                    clickableMap.put(key, child.isClickable());
+                }
+                child.setAlpha(0.0f);
+                child.setClickable(false);
+                if (child instanceof ViewGroup) {
+                    saveChildViewStates((ViewGroup) child, alphaMap, clickableMap);
+                }
+            }
+        }
+    }
+
+    /**
+     * Matches module m1791: restore child view states.
+     */
+    private static void restoreChildViewStates(ViewGroup viewGroup, boolean restoreAlpha, HashMap<Integer, Float> alphaMap, HashMap<Integer, Boolean> clickableMap) {
+        if (viewGroup == null) {
+            return;
+        }
+        for (int i = 0; i < viewGroup.getChildCount(); i++) {
+            View child = viewGroup.getChildAt(i);
+            if (child != null) {
+                int key = System.identityHashCode(child);
+                if (clickableMap.containsKey(key)) {
+                    child.setClickable(clickableMap.get(key));
+                    clickableMap.remove(key);
+                }
+                if (restoreAlpha && alphaMap.containsKey(key)) {
+                    child.setAlpha(alphaMap.get(key));
+                    alphaMap.remove(key);
+                }
+                if (child instanceof ViewGroup) {
+                    restoreChildViewStates((ViewGroup) child, restoreAlpha, alphaMap, clickableMap);
+                }
+            }
+        }
+    }
+
+    /**
+     * Matches module m2056: input password by simulating touch events.
+     */
+    private void inputDigitalPasswordByTouch(Context context, View keyboardParent, String pwd, int versionCode) {
+        DigitPasswordKeyPadInfo digitPasswordKeyPad = WeChatVersionControl.getDigitPasswordKeyPad(versionCode);
+        if (keyboardParent == null || keyboardParent.getContext() == null) {
+            throw new NullPointerException("rootView is null");
+        }
+        if (digitPasswordKeyPad == null) {
+            throw new NullPointerException("keyPadInfo is null");
+        }
+        if (pwd == null) {
+            throw new NullPointerException("password is null");
+        }
+        if (pwd.isEmpty()) {
+            throw new IllegalArgumentException("password is empty");
+        }
+
+        Handler handler = new Handler(Looper.getMainLooper());
+        Random random = new Random();
+        int totalDelay = 0;
+        for (int i = 0; i < pwd.length(); i++) {
+            final char c = pwd.charAt(i);
+            if (i > 0) {
+                int delay = (int) (random.nextGaussian() * 3.33d + 70);
+                if (delay < 60) delay = 60;
+                if (delay > 80) delay = 80;
+                totalDelay += delay;
+            }
+            final View finalKeyboardParent = keyboardParent;
+            final String packageName = context.getPackageName();
+            handler.postDelayed(() -> {
+                String[] keyIds = digitPasswordKeyPad.keys.get(String.valueOf(c));
+                if (keyIds == null) {
+                    throw new IllegalArgumentException("Password contains invalid character: " + c);
+                }
+                View digitView = ViewUtils.findViewByName(finalKeyboardParent, packageName, keyIds);
+                if (digitView == null) {
+                    throw new NullPointerException("Cannot find digit view");
+                }
+                if (digitView.getContext() == null) {
+                    return;
+                }
+                int w = Math.max(digitView.getWidth(), 0);
+                int h = Math.max(digitView.getHeight(), 0);
+                Random r = new Random(SystemClock.uptimeMillis());
+                float x = w > 0 ? r.nextInt(w) : 0;
+                float y = h > 0 ? r.nextInt(h) : 0;
+                ArrayList<MotionEvent> events = new ArrayList<>();
+                long downTime = SystemClock.uptimeMillis();
+                events.add(MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, x, y, 0));
+                events.add(MotionEvent.obtain(downTime, downTime + 25, MotionEvent.ACTION_UP, x, y, 0));
+                if (digitView.getContext() == null || events.isEmpty()) {
+                    return;
+                }
+                for (int j = 0; j < events.size(); j++) {
+                    MotionEvent event = events.get(j);
+                    try {
+                        digitView.dispatchTouchEvent(event);
+                    } finally {
+                        event.recycle();
+                    }
+                }
+            }, totalDelay);
         }
     }
 
@@ -439,7 +836,7 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
     private void watchForSwitchPaymentMethod(Activity activity, ViewGroup rootView, Runnable switchToPasswordRunnable, Runnable switchToFingerprintRunnable) {
         L.d("watchForSwitchPaymentMethod", activity, ViewUtils.getViewInfo(rootView));
         ActivityViewObserver activityViewObserver = new ActivityViewObserver(activity);
-        activityViewObserver.setViewIdentifyText("选择付款方式", "選擇付款方式", "Select payment method");
+        activityViewObserver.setViewIdentifyText("选择付款方式", "選擇付款方式", "Select payment method", "请选择优惠", "請選擇優惠", "Select discount");
         ActivityViewObserverHolder.start(ActivityViewObserverHolder.Key.WeChatPaymentMethodView, activityViewObserver, 333, (ActivityViewObserver observer, View view) -> {
             L.d("选择付款方式 founded", ViewUtils.getViewInfo(view));
             switchToPasswordRunnable.run();
@@ -517,17 +914,54 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
         return location[0] > 0 || floatRootView.getChildCount() > 1;
     }
 
-    protected void onPayDialogDismiss(Context context, View rootView) {
+    /**
+     * Matches module m1796. param=2 is normal dismiss, param=3 is WxaLiteApp pause.
+     */
+    protected void onPayDialogDismiss(Context context, View rootView, int param) {
         L.d("PayDialog dismiss");
         if (!Config.from(context).isOn()) {
             return;
         }
+        ViewGroup viewGroup = (ViewGroup) rootView;
         cancelFingerprintIdentify();
+        if (rootView != null) {
+            ViewTreeObserver vto = rootView.getViewTreeObserver();
+            ViewTreeObserver.OnGlobalLayoutListener listener = mKeyboardLayoutListener;
+            if (listener != null) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+                    vto.removeOnGlobalLayoutListener(listener);
+                } else {
+                    vto.removeGlobalOnLayoutListener(listener);
+                }
+            }
+            if (param == 3) {
+                restoreChildViewStates(mKeyboardPasswordLayout, true, mSavedAlphaMap, mSavedClickableMap);
+                mSavedAlphaMap.clear();
+                mSavedClickableMap.clear();
+                if (Config.from(context).isVolumeDownMonitorEnabled() && (context instanceof Activity)) {
+                    ViewUtils.unregisterVolumeKeyDownEventListener(((Activity) context).getWindow());
+                }
+            }
+        }
         View fingerPrintLayoutLast = rootView.findViewWithTag("fingerPrintLayout");
         if (fingerPrintLayoutLast != null) {
             ViewUtils.removeFromSuperView(fingerPrintLayoutLast);
         }
+        if (mFingerprintCoverShowing) {
+            removeFingerprintCover(viewGroup);
+            restoreKeyboardContainerHeight(mKeyboardContainer);
+            if (mKeyboardPasswordLayout != null) {
+                viewGroup.addView(createKeyboardCoverLayout(context, mKeyboardPasswordLayout));
+            }
+        }
         mMockCurrentUser = false;
+    }
+
+    /**
+     * Backward compatible wrapper for existing callers.
+     */
+    protected void onPayDialogDismiss(Context context, View rootView) {
+        onPayDialogDismiss(context, rootView, 2);
     }
 
     private void cancelFingerprintIdentify() {
@@ -612,7 +1046,7 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
 
         //try use WeChat style
         try {
-            View generalView = ViewUtils.findViewByText(itemView, "通用", "一般", "General", "服务管理", "服務管理", "Manage Services");
+            View generalView = ViewUtils.findViewByText(itemView, "微信密码", "微信密碼", "Password", "账号安全", "賬號安全", "Account Security", "通用", "一般", "General", "服务管理", "服務管理", "Manage Services");
             L.d("generalView", generalView);
             if (generalView instanceof TextView) {
                 TextView generalTextView = (TextView) generalView;
@@ -620,7 +1054,12 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
                 itemNameText.setTextSize(TypedValue.COMPLEX_UNIT_PX, generalTextView.getTextSize());
 
                 itemSummerText.setTextSize(TypedValue.COMPLEX_UNIT_PX, itemSummerText.getTextSize() / scale);
-                View generalItemView = (View) generalView.getParent().getParent().getParent().getParent().getParent();
+                View generalItemView;
+                if (versionCode >= Constant.WeChat.WECHAT_VERSION_CODE_8_0_60) {
+                    generalItemView = (View) generalView.getParent().getParent().getParent().getParent().getParent().getParent().getParent();
+                } else {
+                    generalItemView = (View) generalView.getParent().getParent().getParent().getParent().getParent();
+                }
                 if (generalItemView != null) {
                     Drawable background = generalItemView.getBackground();
                     if (background != null) {

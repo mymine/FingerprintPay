@@ -50,6 +50,8 @@ public class Constant {
         public static final int WECHAT_VERSION_CODE_8_0_20 = 2100;
         public static final int WECHAT_VERSION_CODE_8_0_30 = 2240;
         public static final int WECHAT_VERSION_CODE_8_0_43 = 2460;
+        public static final int WECHAT_VERSION_CODE_8_0_60 = 2600;
+        public static final int WECHAT_VERSION_CODE_8_0_65 = 2960;
     }
 
     public static class QQ {
