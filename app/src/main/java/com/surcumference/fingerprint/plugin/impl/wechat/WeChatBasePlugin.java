@@ -401,6 +401,10 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
         final ViewGroup finalKeyboardContainer = keyboardContainer;
         final Runnable switchToPasswordRunnable = () -> {
             removeFingerprintCover(rootView);
+            View kbCover = rootView.findViewWithTag("keyboardCoverLayout");
+            if (kbCover != null) {
+                ViewUtils.removeFromSuperView(kbCover);
+            }
             restoreKeyboardContainerHeight(finalKeyboardContainer);
             restoreChildViewStates(finalPasswordLayout, true, mSavedAlphaMap, mSavedClickableMap);
             cancelFingerprintIdentify();
