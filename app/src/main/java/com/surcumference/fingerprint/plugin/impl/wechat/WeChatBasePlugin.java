@@ -184,9 +184,16 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
                             }
                             keyboardKey.post(() -> onPayDialogShownByKeyboard(activity, decorView, keyboardKey));
                         } else if (!keyboardVisible && wasVisible[0]) {
+                            // Remove both cover layouts
                             removeFingerprintCover(decorView);
+                            View kbCover = decorView.findViewWithTag("keyboardCoverLayout");
+                            if (kbCover != null) {
+                                ViewUtils.removeFromSuperView(kbCover);
+                            }
                             restoreKeyboardContainerHeight(mKeyboardContainer);
                             cancelFingerprintIdentify();
+                            // Restore child view states before clearing
+                            restoreChildViewStates(mKeyboardPasswordLayout, true, mSavedAlphaMap, mSavedClickableMap);
                             mSavedAlphaMap.clear();
                             mSavedClickableMap.clear();
                             if (Config.from(listenerContext).isVolumeDownMonitorEnabled()) {
@@ -394,6 +401,10 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
         final ViewGroup finalKeyboardContainer = keyboardContainer;
         final Runnable switchToPasswordRunnable = () -> {
             removeFingerprintCover(rootView);
+            View kbCover = rootView.findViewWithTag("keyboardCoverLayout");
+            if (kbCover != null) {
+                ViewUtils.removeFromSuperView(kbCover);
+            }
             restoreKeyboardContainerHeight(finalKeyboardContainer);
             restoreChildViewStates(finalPasswordLayout, true, mSavedAlphaMap, mSavedClickableMap);
             cancelFingerprintIdentify();
