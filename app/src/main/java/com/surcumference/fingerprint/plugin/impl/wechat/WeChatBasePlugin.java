@@ -61,6 +61,9 @@ import java.util.WeakHashMap;
 
 public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
 
+    protected static final int DISMISS_NORMAL = 2;
+    protected static final int DISMISS_WXA_LITE_APP_PAUSE = 3;
+
     private WeakHashMap<View, View.OnAttachStateChangeListener> mView2OnAttachStateChangeListenerMap = new WeakHashMap<>();
     protected boolean mMockCurrentUser = false;
     protected XBiometricIdentify mFingerprintIdentify;
@@ -266,12 +269,12 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
                 if (getVersionCode(activity) >= Constant.WeChat.WECHAT_VERSION_CODE_8_0_20 && activityClzName.contains("com.tencent.mm.ui.LauncherUI")) {
                     stopFragmentObserver(activity);
                 } else if (activityClzName.contains(".WxaLiteAppTransparentLiteUI")) {
-                    onPayDialogDismiss(activity, activity.getWindow().getDecorView(), 3);
+                    onPayDialogDismiss(activity, activity.getWindow().getDecorView(), DISMISS_WXA_LITE_APP_PAUSE);
                 }
             }
             ActivityViewObserverHolder.stop(ActivityViewObserverHolder.Key.WeChatPayView);
             ActivityViewObserverHolder.stop(ActivityViewObserverHolder.Key.WeChatPaymentMethodView);
-            onPayDialogDismiss(activity, activity.getWindow().getDecorView(), 2);
+            onPayDialogDismiss(activity, activity.getWindow().getDecorView(), DISMISS_NORMAL);
         } catch (Exception e) {
             L.e(e);
         }
@@ -926,7 +929,8 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
     }
 
     /**
-     * Matches module m1796. param=2 is normal dismiss, param=3 is WxaLiteApp pause.
+     * Matches module m1796.
+     * @param param {@link #DISMISS_NORMAL} for normal dismiss, {@link #DISMISS_WXA_LITE_APP_PAUSE} for WxaLiteApp pause.
      */
     protected void onPayDialogDismiss(Context context, View rootView, int param) {
         L.d("PayDialog dismiss");
@@ -945,7 +949,7 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
                     vto.removeGlobalOnLayoutListener(listener);
                 }
             }
-            if (param == 3) {
+            if (param == DISMISS_WXA_LITE_APP_PAUSE) {
                 restoreChildViewStates(mKeyboardPasswordLayout, true, mSavedAlphaMap, mSavedClickableMap);
                 mSavedAlphaMap.clear();
                 mSavedClickableMap.clear();
@@ -972,7 +976,7 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
      * Backward compatible wrapper for existing callers.
      */
     protected void onPayDialogDismiss(Context context, View rootView) {
-        onPayDialogDismiss(context, rootView, 2);
+        onPayDialogDismiss(context, rootView, DISMISS_NORMAL);
     }
 
     private void cancelFingerprintIdentify() {
