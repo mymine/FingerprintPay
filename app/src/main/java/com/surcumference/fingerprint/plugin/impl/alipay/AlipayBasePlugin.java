@@ -171,7 +171,10 @@ public class AlipayBasePlugin implements IAppPlugin {
 
                         boolean isNormalPay = ViewUtils.isShown(ViewUtils.findViewByText(rootView,"请输入长密码", "請輸入長密碼", "Payment Password"))
                                 || ViewUtils.isShown(ViewUtils.findViewByText(rootView,"密码共6位，已输入0位"));
-                        if (isRechargePay || isNormalPay) {
+
+                        boolean isKeyAreaPay = ViewUtils.isShown(ViewUtils.findViewByName(activity, "com.alipay.android.phone.mobilecommon.verifyidentity", "ll_key_area"));
+
+                        if (isRechargePay || isNormalPay || isKeyAreaPay) {
                             if (mIsViewTreeObserverFirst) {
                                 if (showFingerPrintDialog(activity)) {
                                     mIsViewTreeObserverFirst = false;
@@ -265,7 +268,8 @@ public class AlipayBasePlugin implements IAppPlugin {
                 if (activity.getClass().getName().contains(".MspContainerActivity")) {
                     View payTextView = ViewUtils.findViewByText(activity.getWindow().getDecorView(),
                             "支付宝支付密码", "支付寶支付密碼", "Alipay Payment Password",
-                            "请输入支付密码", "請輸入支付密碼", "Payment password");
+                            "请输入支付密码", "請輸入支付密碼", "Payment password",
+                            "请输入长密码", "請輸入長密碼", "密码共6位，已输入0位");
                     L.d("payTextView", payTextView);
                     if (payTextView == null) {
                         return false;
