@@ -13,11 +13,8 @@ jobs:
 
     steps:
       - name: Get current time
-        uses: 1466587594/get-current-time@v2
         id: current-time
-        with:
-          format: YYYYMMDD-HH
-          utcOffset: "+08:00"
+        run: echo "formattedTime=$(TZ='Asia/Shanghai' date '+%Y%m%d-%H')" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -80,11 +77,11 @@ jobs:
         run: |
           echo "${{ env.release_version }}"
       - name: Delete drafts
-        uses: hugo19941994/delete-draft-releases@v1.0.0
+        run: gh release list --json tagName,isDraft -q '.[] | select(.isDraft) | .tagName' | xargs -I {} gh release delete {} --yes 2>/dev/null || true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Release draft
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           draft: true
           name: "${{ env.release_version }}"

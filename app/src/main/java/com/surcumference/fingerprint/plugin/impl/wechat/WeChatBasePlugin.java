@@ -460,7 +460,7 @@ public class WeChatBasePlugin implements IAppPlugin, IMockCurrentUser {
                 Toaster.showLong(Lang.getString(R.id.toast_password_auto_enter_fail));
                 L.e(e);
             }
-            switchToPasswordRunnable.run();
+            rootView.postDelayed(switchToPasswordRunnable, 1000);
         }, switchToPasswordRunnable);
 
         // Icon click -> switch to password
