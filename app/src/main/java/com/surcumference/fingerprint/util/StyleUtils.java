@@ -32,7 +32,8 @@ public class StyleUtils {
     }
 
     public static boolean isColorDark(@ColorInt int color) {
-        return getUnsignedInt(color) < getUnsignedInt(0xFF808080);
+        // Ignore alpha channel, compare RGB only
+        return getUnsignedInt(color | 0xFF000000) < getUnsignedInt(0xFF808080);
     }
 
     public static long getUnsignedInt(int x) {
