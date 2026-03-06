@@ -70,6 +70,7 @@ public class QQBasePlugin implements IAppPlugin, IMockCurrentUser {
     private WeakHashMap<Activity, String> mActivityPayMap = new WeakHashMap<>();
     private WeakHashMap<Activity, String> mActivityResumeMap = new WeakHashMap<>();
     private WeakHashMap<Activity, QQPayDialog> mActivityPayDialogMap = new WeakHashMap<>();
+    private WeakHashMap<Activity, ViewTreeObserver.OnGlobalLayoutListener> mPayViewLayoutListenerMap = new WeakHashMap<>();
     private int mQQVersionCode;
     private ViewTreeObserver.OnWindowAttachListener mPayWindowAttachListener;
     private boolean mPayDialogTemporaryBlocking = false;
@@ -138,7 +139,7 @@ public class QQBasePlugin implements IAppPlugin, IMockCurrentUser {
                     qqKeyboardFlashBugfixer(activity);
                 }
                 cancelFingerprintIdentify();
-                initPayActivity(activity, 10, 100);
+                watchPayView(activity);
             }
         } catch (Exception e) {
             L.e(e);
@@ -152,7 +153,9 @@ public class QQBasePlugin implements IAppPlugin, IMockCurrentUser {
             if (BuildConfig.DEBUG) {
                 L.d("activity", activity, "clz", activityClzName);
             }
-            if (activityClzName.contains(".QWalletPluginProxyActivity")) {
+            if (activityClzName.contains(".QWalletPluginProxyActivity")
+                || activityClzName.contains(".QWalletToolFragmentActivity")) {
+                removePayViewLayoutListener(activity);
                 if (activity == mCurrentPayActivity) {
                     L.d("found");
                     mCurrentPayActivity = null;
@@ -187,6 +190,40 @@ public class QQBasePlugin implements IAppPlugin, IMockCurrentUser {
     @Override
     public void setMockCurrentUser(boolean mock) {
         this.mMockCurrentUser = mock;
+    }
+
+    private void watchPayView(Activity activity) {
+        removePayViewLayoutListener(activity);
+        ViewGroup rootView = (ViewGroup) activity.getWindow().getDecorView();
+        ViewTreeObserver.OnGlobalLayoutListener listener = new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                if (mPayDialogTemporaryBlocking || mFingerprintIdentifyTemporaryBlocking) {
+                    return;
+                }
+                QQPayDialog payDialog = mActivityPayDialogMap.get(activity);
+                if (payDialog != null) {
+                    return;
+                }
+                payDialog = QQPayDialog.findFrom(rootView);
+                if (payDialog == null) {
+                    return;
+                }
+                removePayViewLayoutListener(activity);
+                initPayActivity(activity, 10, 20);
+            }
+        };
+        mPayViewLayoutListenerMap.put(activity, listener);
+        rootView.getViewTreeObserver().addOnGlobalLayoutListener(listener);
+        // Also try immediately in case views are already loaded
+        initPayActivity(activity, 10, 20);
+    }
+
+    private void removePayViewLayoutListener(Activity activity) {
+        ViewTreeObserver.OnGlobalLayoutListener listener = mPayViewLayoutListenerMap.remove(activity);
+        if (listener != null) {
+            activity.getWindow().getDecorView().getViewTreeObserver().removeOnGlobalLayoutListener(listener);
+        }
     }
 
     private synchronized void initPayActivity(Activity activity, int retryDelay, int retryCountdown) {
