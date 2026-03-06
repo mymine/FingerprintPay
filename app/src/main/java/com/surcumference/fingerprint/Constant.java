@@ -23,7 +23,13 @@ public class Constant {
     public static final String HELP_URL_QQ = "https://gitee.com/eritpchy/FingerprintPay/blob/main/doc/QQ/README.md";
     public static final String HELP_URL_UNIONPAY = "https://gitee.com/eritpchy/FingerprintPay/blob/main/doc/UnionPay/README.md#%E4%BD%BF%E7%94%A8%E6%95%99%E7%A8%8B";
     public static final String HELP_URL_FAQ = "https://gitee.com/eritpchy/FingerprintPay/blob/main/README.md#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98";
-    public static final String HELP_URL_LICENSE = "https://gitee.com/eritpchy/FingerprintPay/blob/main/license.md";
+    public static final String HELP_URL_LICENSE = "https://github.com/eritpchy/FingerprintPay/blob/main/license.md";
+    public static final String[] HELP_URL_LICENSE_FALLBACKS = new String[] {
+        "https://gh-proxy.org/https://raw.githubusercontent.com/eritpchy/FingerprintPay/main/license.md",
+        "https://hk.gh-proxy.org/https://raw.githubusercontent.com/eritpchy/FingerprintPay/main/license.md",
+        "https://cdn.gh-proxy.org/https://raw.githubusercontent.com/eritpchy/FingerprintPay/main/license.md",
+        "https://edgeone.gh-proxy.org/https://raw.githubusercontent.com/eritpchy/FingerprintPay/main/license.md",
+    };
     public static final String PROJECT_URL = "https://github.com/eritpchy/FingerprintPay";
     public static final String[] UPDATE_URLS = new String[] {
         "https://api.github.com/repos/eritpchy/FingerprintPay/releases/latest",

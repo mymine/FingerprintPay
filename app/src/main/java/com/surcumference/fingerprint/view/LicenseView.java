@@ -11,6 +11,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.DecelerateInterpolator;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceError;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
@@ -27,6 +29,11 @@ import com.surcumference.fingerprint.util.Task;
 import com.surcumference.fingerprint.util.UrlUtils;
 import com.surcumference.fingerprint.util.log.L;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
 /**
  * Created by Jason on 2017/11/18.
  */
@@ -34,6 +41,7 @@ import com.surcumference.fingerprint.util.log.L;
 public class LicenseView extends DialogFrameLayout {
 
     private ProgressBar mProgressBar;
+    private boolean mLoadSuccess = false;
 
     public LicenseView(@NonNull Context context) {
         super(context);
@@ -65,6 +73,66 @@ public class LicenseView extends DialogFrameLayout {
         withPositiveButtonText(Lang.getString(R.id.agree));
     }
 
+    private void loadFallbackLicense(WebView webView) {
+        Task.onBackground(() -> {
+            for (String fallbackUrl : Constant.HELP_URL_LICENSE_FALLBACKS) {
+                try {
+                    HttpURLConnection conn = (HttpURLConnection) new URL(fallbackUrl).openConnection();
+                    conn.setConnectTimeout(5000);
+                    conn.setReadTimeout(5000);
+                    if (conn.getResponseCode() != 200) {
+                        conn.disconnect();
+                        continue;
+                    }
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        sb.append(line).append("\n");
+                    }
+                    reader.close();
+                    conn.disconnect();
+                    String md = sb.toString();
+                    if (md.length() > 0) {
+                        String html = markdownToSimpleHtml(md);
+                        Task.onMain(() -> webView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null));
+                        return;
+                    }
+                } catch (Exception e) {
+                    L.d("Fallback failed: " + fallbackUrl, e);
+                }
+            }
+        });
+    }
+
+    private static String markdownToSimpleHtml(String md) {
+        String escaped = md.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+        String[] lines = escaped.split("\n");
+        StringBuilder html = new StringBuilder();
+        html.append("<html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'>");
+        html.append("<style>body{font-family:sans-serif;padding:8px;line-height:1.6;color:#333}h3,h4,h5{margin:12px 0 6px}</style>");
+        html.append("</head><body>");
+        for (String line : lines) {
+            if (line.startsWith("##### ")) {
+                html.append("<h5>").append(line.substring(6)).append("</h5>");
+            } else if (line.startsWith("#### ")) {
+                html.append("<h4>").append(line.substring(5)).append("</h4>");
+            } else if (line.startsWith("### ")) {
+                html.append("<h3>").append(line.substring(4)).append("</h3>");
+            } else if (line.startsWith("- ")) {
+                String content = line.substring(2).replaceAll("\\*\\*(.+?)\\*\\*", "<b>$1</b>");
+                html.append("<p style='margin:2px 0 2px 16px'>• ").append(content).append("</p>");
+            } else if (line.trim().isEmpty()) {
+                html.append("<br>");
+            } else {
+                String content = line.replaceAll("\\*\\*(.+?)\\*\\*", "<b>$1</b>");
+                html.append("<p>").append(content).append("</p>");
+            }
+        }
+        html.append("</body></html>");
+        return html.toString();
+    }
+
     private ProgressBar initProgressBar(Context context) {
         ProgressBar progressBar = new ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.getIndeterminateDrawable().setColorFilter(Color.BLUE, android.graphics.PorterDuff.Mode.MULTIPLY);
@@ -93,6 +161,28 @@ public class LicenseView extends DialogFrameLayout {
                 }
                 UrlUtils.openUrl(context, url);
                 return true;
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                mLoadSuccess = true;
+            }
+
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                super.onReceivedError(view, request, error);
+                if (!mLoadSuccess && request.isForMainFrame()) {
+                    loadFallbackLicense(view);
+                }
+            }
+
+            @Override
+            public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
+                super.onReceivedError(view, errorCode, description, failingUrl);
+                if (!mLoadSuccess) {
+                    loadFallbackLicense(view);
+                }
             }
         });
         webView.setWebChromeClient(new WebChromeClient() {
